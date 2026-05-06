@@ -1,12 +1,11 @@
 {
-  "name": "5K Trainer",
-  "short_name": "5K Trainer",
+  "name": "5K Coach",
+  "short_name": "5K Coach",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#f2f2f7",
-  "theme_color": "#007aff",
+  "background_color": "#0f1115",
+  "theme_color": "#ff6a00",
   "orientation": "portrait",
-  "description": "A simple 5K training app to track workouts, progress, and notes.",
   "icons": [
     {
       "src": "icon.png",
