@@ -49,7 +49,10 @@ body{
   margin-bottom:15px;
 }
 
-h3{ color:var(--orange); margin:0 0 10px; }
+h3{
+  color:var(--orange);
+  margin:0 0 10px;
+}
 
 input, select{
   width:100%;
@@ -264,47 +267,50 @@ function del(i){
   render();
 }
 
-/* ---------------- TRAINING PLAN (CLICKABLE + SAFE) ---------------- */
+/* ---------------- PLAN ---------------- */
 
 function showWorkout(i){
 
-  const w = [
-    ["Monday","Easy + Strength","5–8km @ 5:30–6:00/km + strength"],
-    ["Tuesday","Intervals","6×400m @ ~4:00/km pace"],
+  const data = [
+    ["Monday","Easy + Strength","5–8km @ 5:30–6:00/km"],
+    ["Tuesday","Intervals","6×400m @ 4:00/km"],
     ["Wednesday","Recovery","30–40 min easy"],
     ["Thursday","Tempo","20 min @ 4:30–4:45/km"],
     ["Friday","Easy","5–7km relaxed"],
-    ["Saturday","Long Run","60–80 min easy pace"],
+    ["Saturday","Long Run","60–80 min easy"],
     ["Sunday","Rest","Full recovery"]
   ][i];
 
-  alert(`${w[0]}\n\n${w[1]}\n\n${w[2]}`);
+  alert(`${data[0]}\n\n${data[1]}\n\n${data[2]}`);
 }
 
 function plan(){
 
-  const data = [
+  const days = [
     "Monday: Easy + Strength",
-    "Tuesday: Intervals (6×400m)",
+    "Tuesday: Intervals",
     "Wednesday: Recovery",
-    "Thursday: Tempo (20 min)",
-    "Friday: Easy run",
-    "Saturday: Long run",
+    "Thursday: Tempo",
+    "Friday: Easy",
+    "Saturday: Long Run",
     "Sunday: Rest"
   ];
 
-  return data.map((x,i)=>
-    `<div class="entry" onclick="showWorkout(${i})">${x}</div>`
+  return days.map((d,i)=>
+    `<div class="entry" onclick="showWorkout(${i})">${d}</div>`
   ).join("");
 }
 
-/* ---------------- GRAPH ---------------- */
+/* ---------------- GRAPH (FIXED) ---------------- */
 
 function draw(){
 
   let s=getState();
   let c=document.getElementById("chart");
   let ctx=c.getContext("2d");
+
+  c.width = c.offsetWidth;
+  c.height = 200;
 
   ctx.clearRect(0,0,c.width,c.height);
 
@@ -330,27 +336,34 @@ function draw(){
     let arr=grouped[type];
     let color=colors[type]||"#fff";
 
+    ctx.beginPath();
     ctx.strokeStyle=color;
     ctx.fillStyle=color;
-    ctx.beginPath();
 
     arr.forEach((v,i)=>{
 
-      let x=i*25;
-      let y=c.height - v*10;
+      let x = (i+1)*(c.width/(arr.length+1));
+      let y = c.height - v*10;
 
       if(i===0) ctx.moveTo(x,y);
       else ctx.lineTo(x,y);
 
-      // filled circle (important fix)
-      ctx.arc(x,y,4,0,Math.PI*2);
-      ctx.fill();
-
-      ctx.beginPath();
-      ctx.moveTo(x,y);
     });
 
     ctx.stroke();
+
+    arr.forEach((v,i)=>{
+
+      let x = (i+1)*(c.width/(arr.length+1));
+      let y = c.height - v*10;
+
+      ctx.beginPath();
+      ctx.arc(x,y,5,0,Math.PI*2);
+      ctx.fillStyle=color;
+      ctx.fill();
+
+    });
+
   });
 
   document.getElementById("legend").innerHTML = `
