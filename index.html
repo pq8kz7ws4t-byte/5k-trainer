@@ -6,86 +6,104 @@
 <title>5K Coach</title>
 
 <style>
-:root {
-  --primary:#ff6a00;
+:root{
+  --orange:#ff6a00;
   --bg:#0f0f10;
   --card:#1c1c1f;
-  --text:#ffffff;
-  --muted:#a1a1aa;
+  --text:#fff;
+  --muted:#aaa;
 }
 
-body {
+body{
   margin:0;
   font-family:-apple-system, BlinkMacSystemFont, sans-serif;
   background:var(--bg);
   color:var(--text);
 }
 
-.header {
+.header{
   position:fixed;
   top:0;
   width:100%;
-  background:rgba(28,28,31,0.95);
+  background:#1c1c1f;
   padding:14px;
   text-align:center;
   font-weight:700;
+  color:var(--orange);
   border-bottom:1px solid #333;
-  color:var(--primary);
 }
 
-.content {
+.content{
   padding:70px 15px 100px;
 }
 
-.card {
+.card{
   background:var(--card);
   padding:15px;
   border-radius:14px;
   margin-bottom:15px;
-  box-shadow:0 4px 12px rgba(0,0,0,0.3);
 }
 
-h3 {
-  margin-top:0;
-  color:var(--primary);
-}
+h3{ color:var(--orange); margin-top:0; }
 
-.small {
-  font-size:13px;
-  color:var(--muted);
-}
+.small{ color:var(--muted); font-size:13px; }
 
-input, textarea {
-  width:100%;
-  padding:10px;
-  border-radius:10px;
-  border:1px solid #333;
-  background:#111;
-  color:white;
-}
-
-button {
+button{
   width:100%;
   padding:12px;
-  margin-top:10px;
   border:none;
   border-radius:10px;
-  background:var(--primary);
+  background:var(--orange);
   color:white;
   font-size:16px;
   font-weight:600;
+  margin-top:10px;
 }
 
-.tabbar {
+/* ---------------- WHEEL PICKER ---------------- */
+
+.picker-row{
+  display:flex;
+  gap:10px;
+  justify-content:space-between;
+}
+
+.wheel{
+  flex:1;
+  height:140px;
+  overflow-y:scroll;
+  scroll-snap-type:y mandatory;
+  border:1px solid #333;
+  border-radius:10px;
+  background:#111;
+}
+
+.wheel div{
+  height:40px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  scroll-snap-align:center;
+  color:white;
+  font-size:18px;
+}
+
+.wheel::-webkit-scrollbar{
+  display:none;
+}
+
+/* ---------------- NAV ---------------- */
+
+.tabbar{
   position:fixed;
   bottom:0;
   width:100%;
   display:flex;
-  background:#141416;
+  background:#1c1c1f;
   border-top:1px solid #333;
 }
 
-.tab {
+.tab{
   flex:1;
   text-align:center;
   padding:10px;
@@ -93,22 +111,10 @@ button {
   color:#aaa;
 }
 
-.active {
-  color:var(--primary);
-  font-weight:700;
-}
+.active{ color:var(--orange); font-weight:700; }
 
-.hidden { display:none; }
+.hidden{ display:none; }
 
-.badge {
-  display:inline-block;
-  padding:4px 8px;
-  border-radius:999px;
-  background:rgba(255,106,0,0.15);
-  color:var(--primary);
-  font-size:12px;
-  margin-bottom:10px;
-}
 </style>
 </head>
 
@@ -122,10 +128,9 @@ button {
 <div id="dashboard">
 
   <div class="card">
-    <div class="badge">Adaptive Training System</div>
-    <h3>Current Phase</h3>
+    <h3>Phase</h3>
     <div id="phase"></div>
-    <div class="small">Goal: Sub 20:00 (4:00/km)</div>
+    <div class="small">Goal: 20:00 (4:00/km)</div>
   </div>
 
   <div class="card">
@@ -134,9 +139,16 @@ button {
   </div>
 
   <div class="card">
-    <h3>Log 5K</h3>
-    <input id="time" placeholder="e.g. 25:30">
-    <button onclick="log()">Save Run</button>
+    <h3>Log 5K (Scroll Input)</h3>
+
+    <div class="picker-row">
+
+      <div class="wheel" id="minWheel"></div>
+      <div class="wheel" id="secWheel"></div>
+
+    </div>
+
+    <button onclick="logRun()">Save Run</button>
   </div>
 
 </div>
@@ -153,7 +165,7 @@ button {
 <div id="settings" class="hidden">
   <div class="card">
     <h3>System</h3>
-    <button onclick="reset()">Reset Plan</button>
+    <button onclick="reset()">Reset</button>
   </div>
 </div>
 
@@ -167,15 +179,15 @@ button {
 
 <script>
 
-/* ---------------- ENGINE ---------------- */
+/* ---------------- TRAINING ENGINE ---------------- */
 
-const phases = ["BASE","THRESHOLD","VO2","RACE"];
+const phases=["BASE","THRESHOLD","VO2","RACE"];
 
-function state() {
+function state(){
   return {
-    week: +(localStorage.getItem("week")||1),
-    phase: +(localStorage.getItem("phase")||0),
-    times: JSON.parse(localStorage.getItem("times")||"[]")
+    week:+(localStorage.getItem("week")||1),
+    phase:+(localStorage.getItem("phase")||0),
+    times:JSON.parse(localStorage.getItem("times")||"[]")
   };
 }
 
@@ -185,99 +197,85 @@ function save(s){
   localStorage.setItem("times",JSON.stringify(s.times));
 }
 
-/* ---------------- PACING ---------------- */
-
 function pace(times){
   if(times.length===0) return 5.2;
-  let last = times[times.length-1].split(":");
-  return (+last[0]*60 + +last[1]) / 300;
+  let t=times[times.length-1].split(":");
+  return (+t[0]*60+ +t[1])/300;
 }
 
-/* ---------------- TRAINING ---------------- */
+function plan(s){
+  let p=pace(s.times);
 
-function weekPlan(s){
-  let p = pace(s.times);
-
-  let easy = (p+0.8).toFixed(2);
-  let tempo = (p+0.2).toFixed(2);
-  let interval = (p-0.4).toFixed(2);
-
-  let phase = phases[s.phase];
-
-  if(phase==="BASE"){
-    return [
-      "Easy 40 min",
-      "3×8 min tempo @" + tempo,
-      "Recovery",
-      "Easy 45 min",
-      "Strides",
-      "Long run 70 min"
-    ];
+  if(phases[s.phase]==="BASE"){
+    return ["Easy 40","3×8 tempo","Recovery","Easy 45","Strides","Long run"];
   }
-
-  if(phase==="THRESHOLD"){
-    return [
-      "Easy + strength",
-      "5×1K @" + interval,
-      "Recovery",
-      "20 min tempo",
-      "Easy run",
-      "Long run 80 min"
-    ];
+  if(phases[s.phase]==="THRESHOLD"){
+    return ["Easy","5×1K","Recovery","20 tempo","Easy","Long run"];
   }
-
-  if(phase==="VO2"){
-    return [
-      "Easy",
-      "6×800m fast",
-      "Recovery",
-      "4×1K @" + interval,
-      "Easy",
-      "Long run 85 min"
-    ];
+  if(phases[s.phase]==="VO2"){
+    return ["Easy","6×800","Recovery","4×1K","Easy","Long run"];
   }
-
-  return [
-    "Easy",
-    "5×1K @ race pace",
-    "Recovery",
-    "15 min tempo",
-    "Easy",
-    "Long run 70 min"
-  ];
+  return ["Easy","5×1K race","Recovery","Tempo","Easy","Long run"];
 }
 
-/* ---------------- PROGRESSION ---------------- */
+/* ---------------- WHEEL PICKER ---------------- */
 
-function advance(s){
+let selectedMin=25;
+let selectedSec=0;
+
+function buildWheels(){
+  let m=document.getElementById("minWheel");
+  let s=document.getElementById("secWheel");
+
+  for(let i=10;i<=60;i++){
+    m.innerHTML+=`<div onclick="selectedMin=${i}">${i}</div>`;
+  }
+
+  for(let i=0;i<60;i++){
+    s.innerHTML+=`<div onclick="selectedSec=${i}">${i.toString().padStart(2,'0')}</div>`;
+  }
+}
+
+/* ---------------- LOGGING ---------------- */
+
+function logRun(){
+  let s=state();
+
+  let time=`${selectedMin}:${selectedSec.toString().padStart(2,'0')}`;
+
+  s.times.push(time);
+
+  if(s.week%4===0) s.phase=Math.min(s.phase+1,3);
   s.week++;
-  if(s.week%4===0){
-    s.phase = Math.min(s.phase+1,3);
-  }
+
   save(s);
+  render();
 }
 
 /* ---------------- UI ---------------- */
 
 function render(){
-  let s = state();
+  let s=state();
 
-  document.getElementById("phase").innerText =
-    phases[s.phase] + " • Week " + s.week;
+  document.getElementById("phase").innerText=
+    phases[s.phase]+" • Week "+s.week;
 
-  document.getElementById("week").innerHTML =
-    weekPlan(s).map(x=>"• "+x).join("<br>");
+  document.getElementById("week").innerHTML=
+    plan(s).map(x=>"• "+x).join("<br>");
 
-  document.getElementById("history").innerHTML =
+  document.getElementById("history").innerHTML=
     s.times.map(t=>"🏃 "+t).join("<br>");
 }
 
-function log(){
-  let s = state();
-  s.times.push(time.value);
-  advance(s);
-  save(s);
-  render();
+function nav(id,el){
+  ["dashboard","progress","settings"].forEach(x=>{
+    document.getElementById(x).classList.add("hidden");
+  });
+
+  document.getElementById(id).classList.remove("hidden");
+
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+  el.classList.add("active");
 }
 
 function reset(){
@@ -285,17 +283,8 @@ function reset(){
   render();
 }
 
-function nav(id,el){
-  ["dashboard","progress","settings"].forEach(x=>{
-    document.getElementById(x).classList.add("hidden");
-  });
-  document.getElementById(id).classList.remove("hidden");
-
-  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
-  el.classList.add("active");
-}
-
 /* INIT */
+buildWheels();
 render();
 
 if("serviceWorker" in navigator){
