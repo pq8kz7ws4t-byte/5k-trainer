@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
+<meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>5K Coach Pro</title>
+<title>5K Coach</title>
 
 <style>
 :root{
@@ -41,9 +41,7 @@ body{
   margin-bottom:15px;
 }
 
-h3{ color:var(--orange); margin:0 0 10px 0; }
-
-.small{ color:var(--muted); font-size:13px; }
+h3{ color:var(--orange); margin:0 0 10px; }
 
 input, select{
   width:100%;
@@ -66,36 +64,6 @@ button{
   font-weight:600;
 }
 
-/* picker */
-.picker-row{
-  display:flex;
-  gap:10px;
-}
-
-.wheel{
-  flex:1;
-  height:140px;
-  overflow-y:scroll;
-  scroll-snap-type:y mandatory;
-  background:#111;
-  border-radius:10px;
-  border:1px solid #333;
-}
-
-.wheel div{
-  height:40px;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  scroll-snap-align:center;
-}
-
-/* highlight center */
-.wheel div:hover{
-  background:rgba(255,106,0,0.2);
-}
-
-/* list */
 .entry{
   padding:8px;
   border-bottom:1px solid #333;
@@ -104,12 +72,8 @@ button{
   font-size:14px;
 }
 
-.delete{
-  color:#ff4d4d;
-  cursor:pointer;
-}
+.delete{ color:#ff4d4d; cursor:pointer; }
 
-/* nav */
 .tabbar{
   position:fixed;
   bottom:0;
@@ -140,7 +104,7 @@ canvas{
 
 <body>
 
-<div class="header">🔥 5K COACH PRO</div>
+<div class="header">🔥 5K COACH</div>
 
 <div class="content">
 
@@ -149,9 +113,9 @@ canvas{
 
   <div class="card">
     <h3>Week Control</h3>
-    <input type="number" id="weekInput" min="1">
-    <button onclick="setWeek()">Set Week</button>
-    <div class="small">Plan updates when you change week</div>
+    <div>Current Week: <span id="weekLabel">1</span></div>
+    <button onclick="nextWeek()">Progress Week ➜</button>
+    <button onclick="undoWeek()">Undo Week</button>
   </div>
 
   <div class="card">
@@ -163,10 +127,8 @@ canvas{
     <h3>Log Workout</h3>
 
     <label>Time</label>
-    <div class="picker-row">
-      <div class="wheel" id="minWheel"></div>
-      <div class="wheel" id="secWheel"></div>
-    </div>
+    <input id="min" type="number" placeholder="minutes">
+    <input id="sec" type="number" placeholder="seconds (0-59)">
 
     <label>Distance (km)</label>
     <input id="dist" type="number" step="0.1">
@@ -179,7 +141,7 @@ canvas{
       <option>Long Run</option>
     </select>
 
-    <button onclick="saveWorkout()">Save Workout</button>
+    <button onclick="save()">Save Workout</button>
   </div>
 
 </div>
@@ -202,7 +164,7 @@ canvas{
 <!-- SETTINGS -->
 <div id="settings" class="hidden">
   <div class="card">
-    <button onclick="reset()">Reset All Data</button>
+    <button onclick="reset()">Reset</button>
   </div>
 </div>
 
@@ -221,46 +183,55 @@ canvas{
 function get(){
   return {
     week:+(localStorage.getItem("week")||1),
-    data:JSON.parse(localStorage.getItem("data")||"[]")
+    history:JSON.parse(localStorage.getItem("history")||"[]")
   };
 }
 
 function save(s){
   localStorage.setItem("week",s.week);
-  localStorage.setItem("data",JSON.stringify(s.data));
+  localStorage.setItem("history",JSON.stringify(s.history));
 }
 
-/* ---------------- WHEELS ---------------- */
+/* ---------------- WEEK CONTROL ---------------- */
 
-let minSel=25;
-let secSel=0;
-
-function build(){
-  let m=document.getElementById("minWheel");
-  let s=document.getElementById("secWheel");
-
-  for(let i=10;i<=60;i++){
-    m.innerHTML+=`<div onclick="minSel=${i}">${i}</div>`;
-  }
-
-  for(let i=0;i<60;i++){
-    s.innerHTML+=`<div onclick="secSel=${i}">${i.toString().padStart(2,'0')}</div>`;
-  }
+function nextWeek(){
+  let s=get();
+  s.week++;
+  save(s);
+  render();
 }
 
-/* ---------------- LOG ---------------- */
+function undoWeek(){
+  let s=get();
+  s.week=Math.max(1,s.week-1);
+  save(s);
+  render();
+}
 
-function saveWorkout(){
+/* ---------------- PACING ADJUSTMENT ---------------- */
+
+function adjustedPace(time,dist){
+  let sec = time*60;
+  return sec / dist;
+}
+
+/* ---------------- SAVE ---------------- */
+
+function save(){
   let s=get();
 
-  let time=`${minSel}:${secSel.toString().padStart(2,'0')}`;
+  let m=+min.value;
+  let sec=+sec.value;
 
-  s.data.push({
+  if(sec>59) sec=59;
+
+  let time=`${m}:${sec.toString().padStart(2,'0')}`;
+
+  s.history.push({
     time,
     dist:+dist.value,
     type:type.value,
-    week:s.week,
-    date:new Date().toISOString()
+    week:s.week
   });
 
   save(s);
@@ -271,29 +242,20 @@ function saveWorkout(){
 
 function del(i){
   let s=get();
-  s.data.splice(i,1);
-  save(s);
-  render();
-}
-
-/* ---------------- WEEK ---------------- */
-
-function setWeek(){
-  let s=get();
-  s.week=+weekInput.value;
+  s.history.splice(i,1);
   save(s);
   render();
 }
 
 /* ---------------- PLAN ---------------- */
 
-function plan(week){
-  if(week<4) return ["Base: Easy + strides","Tempo","Recovery","Long"];
-  if(week<8) return ["Threshold","Intervals","Recovery","Long"];
-  return ["VO2","Race pace","Recovery","Long"];
+function plan(w){
+  if(w<4) return ["Base","Easy + strides","Long run"];
+  if(w<8) return ["Threshold","Intervals","Long run"];
+  return ["VO2","Race pace","Long run"];
 }
 
-/* ---------------- CHART ---------------- */
+/* ---------------- GRAPH (FIXED) ---------------- */
 
 function draw(){
   let s=get();
@@ -302,14 +264,20 @@ function draw(){
 
   ctx.clearRect(0,0,c.width,c.height);
 
-  let runs=s.data.filter(x=>x.type==="Easy"||x.type==="Tempo");
+  let runs=s.history.filter(r=>r.type==="Easy"||r.type==="Tempo");
 
-  runs.forEach((r,i)=>{
-    let p=r.time.split(":");
-    let sec=+p[0]*60+ +p[1];
+  let max=0;
 
+  let data=runs.map(r=>{
+    let [m,sec]=r.time.split(":");
+    let pace=adjustedPace(+m*60+ +sec,r.dist);
+    max=Math.max(max,pace);
+    return pace;
+  });
+
+  data.forEach((p,i)=>{
     let x=i*30;
-    let y=c.height-(sec/5);
+    let y=c.height-(p/max)*150;
 
     ctx.fillStyle="#ff6a00";
     ctx.fillRect(x,y,6,6);
@@ -321,15 +289,15 @@ function draw(){
 function render(){
   let s=get();
 
-  weekInput.value=s.week;
+  weekLabel.innerText=s.week;
 
   document.getElementById("plan").innerHTML=
     plan(s.week).map(x=>"• "+x).join("<br>");
 
   document.getElementById("list").innerHTML=
-    s.data.map((d,i)=>
+    s.history.map((r,i)=>
       `<div class="entry">
-        ${d.type} ${d.time} ${d.dist}km
+        ${r.type} ${r.time} ${r.dist}km
         <span class="delete" onclick="del(${i})">✕</span>
       </div>`
     ).join("");
@@ -343,6 +311,7 @@ function nav(id,el){
   ["dashboard","progress","settings"].forEach(x=>{
     document.getElementById(x).classList.add("hidden");
   });
+
   document.getElementById(id).classList.remove("hidden");
 
   document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
@@ -358,7 +327,6 @@ function reset(){
 
 /* INIT */
 
-build();
 render();
 
 if("serviceWorker" in navigator){
