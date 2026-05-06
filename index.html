@@ -123,7 +123,7 @@ canvas{
   margin-top:10px;
 }
 
-/* MODAL (mobile safe + centered) */
+/* MODAL */
 .modal{
   position:fixed;
   inset:0;
@@ -158,6 +158,26 @@ canvas{
   text-transform:uppercase;
   letter-spacing:.06em;
 }
+
+/* PHASES */
+.phase-card{
+  background:#12151c;
+  border-radius:14px;
+  padding:14px;
+  margin-bottom:10px;
+  transition:all .2s ease;
+}
+
+.phase-focus{
+  font-size:12px;
+  color:#c7cbd6;
+  margin-top:8px;
+  line-height:1.4;
+}
+
+.phase-active{
+  box-shadow:0 0 0 1px rgba(255,106,0,0.25), 0 8px 20px rgba(0,0,0,0.3);
+}
 </style>
 </head>
 
@@ -174,11 +194,20 @@ canvas{
 <div id="view-plan">
 
   <div class="card row">
-    <button onclick="changeWeek(-1)" class="secondary">Undo Week</button>
+    <button class="secondary" onclick="changeWeek(-1)">Undo Week</button>
     <button onclick="changeWeek(1)">Next Week</button>
   </div>
 
   <div id="planList"></div>
+
+  <!-- PHASE OVERVIEW -->
+  <div class="card">
+    <button onclick="togglePhases()" style="width:100%">
+      Show Phase Overview
+    </button>
+
+    <div id="phases" class="hidden" style="margin-top:12px;"></div>
+  </div>
 
 </div>
 
@@ -245,7 +274,7 @@ let week = parseInt(localStorage.getItem('week') || "1");
 let workouts = JSON.parse(localStorage.getItem('workouts') || "[]");
 
 /* ─────────────────────────────
-   PLAN (STABLE UI)
+   PLAN (NO DISTANCES IN LIST)
 ──────────────────────────── */
 const planBase = [
   {day:"Monday", type:"Easy + Strength", summary:"Aerobic base + strength conditioning"},
@@ -253,7 +282,7 @@ const planBase = [
   {day:"Wednesday", type:"Recovery", summary:"Light recovery to absorb training"},
   {day:"Thursday", type:"Tempo", summary:"Threshold endurance training"},
   {day:"Friday", type:"Easy", summary:"Relaxed aerobic run"},
-  {day:"Saturday", type:"Long Run", summary:"Endurance building session"},
+  {day:"Saturday", type:"Long", summary:"Endurance building session"},
   {day:"Sunday", type:"Rest", summary:"Full recovery day"}
 ];
 
@@ -262,7 +291,7 @@ function intensity(){
 }
 
 /* ─────────────────────────────
-   WORKOUT DETAIL ENGINE
+   WORKOUT DETAILS
 ──────────────────────────── */
 function buildWorkoutDetails(p){
 
@@ -276,14 +305,14 @@ function buildWorkoutDetails(p){
 
   if(p.type==="Intervals"){
     distance = "Warmup + 2–5 km quality work";
-    pace = "3:30 – 4:10 /km reps";
+    pace = "3:30 – 4:10 /km";
     purpose = "Increase VO₂ max and speed efficiency";
   }
 
   if(p.type==="Tempo"){
     distance = "6–8 km total";
     pace = "4:10 – 4:40 /km";
-    purpose = "Raise lactate threshold for faster 5K pace";
+    purpose = "Raise lactate threshold for 5K performance";
   }
 
   if(p.type==="Long"){
@@ -294,8 +323,8 @@ function buildWorkoutDetails(p){
 
   if(p.type==="Recovery"){
     distance = "3–4 km";
-    pace = "Very easy (6:00+ /km)";
-    purpose = "Flush legs and accelerate recovery";
+    pace = "Very easy pace";
+    purpose = "Flush legs and recover";
   }
 
   return {distance, pace, purpose};
@@ -328,6 +357,7 @@ function renderPlan(){
 
   drawChart();
   renderHistory();
+  renderPhases();
 }
 
 /* ─────────────────────────────
@@ -361,7 +391,7 @@ function closeModal(){
 }
 
 /* ─────────────────────────────
-   WEEK SYSTEM
+   WEEK
 ──────────────────────────── */
 function changeWeek(d){
   week = Math.max(1, week + d);
@@ -389,6 +419,86 @@ function switchTab(tab){
 }
 
 /* ─────────────────────────────
+   PHASE STRUCTURE (UPDATED)
+──────────────────────────── */
+function getPhases(){
+  return [
+    {
+      name:"Base Building",
+      range:"Weeks 1–4",
+      start:1,end:4,
+      color:"#4aa3ff",
+      focus:"Easy running focus • Long runs 60–75 min • No hard intervals • Strength emphasis"
+    },
+    {
+      name:"Aerobic Strength",
+      range:"Weeks 5–8",
+      start:5,end:8,
+      color:"#4aa3ff",
+      focus:"Tempo introduced • 15–25 min threshold • Light hills or strides"
+    },
+    {
+      name:"Threshold + Speed Intro",
+      range:"Weeks 9–12",
+      start:9,end:12,
+      color:"#ff6a00",
+      focus:"400m–1K intervals • Tempo intensity increases • Long runs 75–90 min"
+    },
+    {
+      name:"VO₂ Max",
+      range:"Weeks 13–16",
+      start:13,end:16,
+      color:"#ff4d4d",
+      focus:"800m–1K intervals at 5K effort • Reduced volume • Higher intensity"
+    },
+    {
+      name:"Race Specific",
+      range:"Weeks 17–20",
+      start:17,end:20,
+      color:"#b26cff",
+      focus:"Race pace workouts (~4:00/km) • 1K repeats • 400m sharpening"
+    },
+    {
+      name:"Peak + Taper",
+      range:"Weeks 21–24",
+      start:21,end:24,
+      color:"#22c55e",
+      focus:"Reduced volume • Short high intensity • Race readiness focus"
+    }
+  ];
+}
+
+function togglePhases(){
+  const el=document.getElementById("phases");
+  el.classList.toggle("hidden");
+  renderPhases();
+}
+
+function renderPhases(){
+  const el=document.getElementById("phases");
+  el.innerHTML="";
+
+  getPhases().forEach(p=>{
+    const active = week>=p.start && week<=p.end;
+
+    const div=document.createElement("div");
+    div.className="phase-card"+(active?" phase-active":"");
+    div.style.borderLeft=`4px solid ${p.color}`;
+
+    div.innerHTML=`
+      <div class="row">
+        <strong>${p.name}</strong>
+        <span class="badge">${p.range}</span>
+      </div>
+      <div class="phase-focus">${p.focus}</div>
+      ${active?`<div style="margin-top:8px;font-size:11px;color:${p.color};font-weight:700;">CURRENT PHASE</div>`:""}
+    `;
+
+    el.appendChild(div);
+  });
+}
+
+/* ─────────────────────────────
    LOGGING
 ──────────────────────────── */
 function addRun(){
@@ -396,8 +506,6 @@ function addRun(){
   const s=parseInt(sec.value||0);
   const d=parseFloat(dist.value||0);
   const t=type.value;
-
-  if(!d) return;
 
   workouts.push({
     id:Date.now(),
@@ -445,7 +553,7 @@ function del(id){
 }
 
 /* ─────────────────────────────
-   CHART + LEGEND + FIXED FIRST DOT
+   CHART (FIXED + LEGEND + FIRST DOT)
 ──────────────────────────── */
 function drawChart(){
   const c=document.getElementById("chart");
@@ -466,9 +574,7 @@ function drawChart(){
   const w=c.offsetWidth;
   const h=140;
 
-  function pace(d){
-    return d.time/d.dist/60;
-  }
+  function pace(d){return d.time/d.dist/60;}
 
   const paces=data.map(pace);
   const max=Math.max(...paces);
@@ -481,13 +587,9 @@ function drawChart(){
            "#b26cff";
   }
 
-  /* DOTS + LINES (FIXED FIRST POINT) */
   data.forEach((d,i)=>{
 
-    const x = (data.length===1)
-      ? w/2
-      : (i/(data.length-1))*w;
-
+    const x = data.length===1 ? w/2 : (i/(data.length-1))*w;
     const y = h - ((pace(d)-min)/((max-min)||1))*h;
 
     ctx.beginPath();
@@ -508,7 +610,7 @@ function drawChart(){
     }
   });
 
-  /* LEGEND */
+  /* legend */
   const legend=[
     {t:"Easy",c:"#4aa3ff"},
     {t:"Tempo",c:"#ff6a00"},
