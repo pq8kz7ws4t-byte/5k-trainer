@@ -8,10 +8,13 @@
 <style>
 :root{
   --orange:#ff6a00;
+  --easy:#4fc3f7;
+  --tempo:#ff9800;
+  --interval:#f44336;
+  --long:#9c27b0;
   --bg:#0f0f10;
   --card:#1c1c1f;
   --text:#fff;
-  --muted:#aaa;
 }
 
 body{
@@ -32,9 +35,7 @@ body{
   font-weight:700;
 }
 
-.content{
-  padding:70px 15px 110px;
-}
+.content{ padding:70px 15px 110px; }
 
 .card{
   background:var(--card);
@@ -43,20 +44,7 @@ body{
   margin-bottom:15px;
 }
 
-h3{
-  color:var(--orange);
-  margin:0 0 10px;
-}
-
-input, select{
-  width:100%;
-  padding:10px;
-  margin-top:6px;
-  border-radius:10px;
-  border:1px solid #333;
-  background:#111;
-  color:white;
-}
+h3{ color:var(--orange); margin:0 0 10px; }
 
 button{
   width:100%;
@@ -70,47 +58,25 @@ button{
 }
 
 .entry{
-  padding:8px;
+  padding:10px;
   border-bottom:1px solid #333;
-  display:flex;
-  justify-content:space-between;
-  font-size:14px;
-}
-
-.delete{
-  color:#ff4d4d;
   cursor:pointer;
 }
 
-.tabbar{
-  position:fixed;
-  bottom:0;
-  width:100%;
-  display:flex;
-  background:#1c1c1f;
-  border-top:1px solid #333;
-}
-
-.tab{
-  flex:1;
-  text-align:center;
-  padding:10px;
+.details{
   font-size:12px;
   color:#aaa;
+  margin-top:5px;
 }
 
-.active{
-  color:var(--orange);
-  font-weight:700;
-}
-
-.hidden{
-  display:none;
+.delete{
+  float:right;
+  color:#ff4d4d;
 }
 
 canvas{
   width:100%;
-  height:180px;
+  height:200px;
 }
 </style>
 </head>
@@ -121,278 +87,226 @@ canvas{
 
 <div class="content">
 
-<!-- DASHBOARD -->
-<div id="dashboard">
-
-  <div class="card">
-    <h3>Week Control</h3>
-    <div>Current Week: <span id="weekLabel">1</span></div>
-    <button onclick="nextWeek()">Progress Week ➜</button>
-    <button onclick="undoWeek()">Undo Week</button>
-  </div>
-
-  <div class="card">
-    <h3>Weekly Plan</h3>
-    <div id="plan"></div>
-  </div>
-
-  <div class="card">
-    <h3>Log Workout</h3>
-
-    <label>Minutes</label>
-    <input id="min" type="number" placeholder="e.g. 25">
-
-    <label>Seconds</label>
-    <input id="sec" type="number" placeholder="0–59">
-
-    <label>Distance (km)</label>
-    <input id="dist" type="number" step="0.1">
-
-    <label>Type</label>
-    <select id="type">
-      <option>Easy</option>
-      <option>Tempo</option>
-      <option>Intervals</option>
-      <option>Long Run</option>
-    </select>
-
-    <button onclick="saveWorkout()">Save Workout</button>
-  </div>
-
+<!-- WEEK -->
+<div class="card">
+  <h3>Week</h3>
+  <div>Week: <span id="weekLabel"></span></div>
+  <button onclick="nextWeek()">Next Week</button>
+  <button onclick="undoWeek()">Undo Week</button>
 </div>
 
-<!-- PROGRESS -->
-<div id="progress" class="hidden">
-
-  <div class="card">
-    <h3>Fitness Trend</h3>
-    <canvas id="chart"></canvas>
-  </div>
-
-  <div class="card">
-    <h3>Workout History</h3>
-    <div id="list"></div>
-  </div>
-
+<!-- PLAN -->
+<div class="card">
+  <h3>Training Plan</h3>
+  <div id="plan"></div>
 </div>
 
-<!-- SETTINGS -->
-<div id="settings" class="hidden">
-  <div class="card">
-    <button onclick="resetAll()">Reset All Data</button>
-  </div>
+<!-- LOG -->
+<div class="card">
+  <h3>Log Workout</h3>
+
+  <input id="min" type="number" placeholder="minutes">
+  <input id="sec" type="number" placeholder="seconds">
+  <input id="dist" type="number" step="0.1" placeholder="distance km">
+
+  <select id="type">
+    <option>Easy</option>
+    <option>Tempo</option>
+    <option>Intervals</option>
+    <option>Long Run</option>
+  </select>
+
+  <button onclick="saveWorkout()">Save</button>
 </div>
 
+<!-- GRAPH -->
+<div class="card">
+  <h3>Fitness Trend</h3>
+  <canvas id="chart"></canvas>
+  <div id="legend"></div>
 </div>
 
-<div class="tabbar">
-  <div class="tab active" onclick="nav('dashboard',this)">Plan</div>
-  <div class="tab" onclick="nav('progress',this)">Progress</div>
-  <div class="tab" onclick="nav('settings',this)">Settings</div>
+<!-- HISTORY -->
+<div class="card">
+  <h3>History</h3>
+  <div id="list"></div>
+</div>
+
 </div>
 
 <script>
 
 /* ---------------- STATE ---------------- */
 
-function getState(){
+function get(){
   return {
-    week: +(localStorage.getItem("week") || 1),
-    history: JSON.parse(localStorage.getItem("history") || "[]")
+    week:+(localStorage.getItem("week")||1),
+    history:JSON.parse(localStorage.getItem("history")||"[]")
   };
 }
 
-function saveState(s){
-  localStorage.setItem("week", s.week);
-  localStorage.setItem("history", JSON.stringify(s.history));
+function save(s){
+  localStorage.setItem("week",s.week);
+  localStorage.setItem("history",JSON.stringify(s.history));
 }
 
-/* ---------------- WEEK CONTROL ---------------- */
+/* ---------------- COLORS ---------------- */
+
+const colors = {
+  "Easy":"#4fc3f7",
+  "Tempo":"#ff9800",
+  "Intervals":"#f44336",
+  "Long Run":"#9c27b0"
+};
+
+/* ---------------- WEEK ---------------- */
 
 function nextWeek(){
-  const s = getState();
+  let s=get();
   s.week++;
-  saveState(s);
+  save(s);
   render();
 }
 
 function undoWeek(){
-  const s = getState();
-  s.week = Math.max(1, s.week - 1);
-  saveState(s);
+  let s=get();
+  s.week=Math.max(1,s.week-1);
+  save(s);
   render();
 }
 
-/* ---------------- SAVE WORKOUT ---------------- */
+/* ---------------- SAVE ---------------- */
 
 function saveWorkout(){
 
-  const s = getState();
+  let s=get();
 
-  const m = parseInt(document.getElementById("min").value);
-  const sec = parseInt(document.getElementById("sec").value);
-  const dist = parseFloat(document.getElementById("dist").value);
-  const type = document.getElementById("type").value;
+  let m=+min.value;
+  let sec=+sec.value;
+  let dist=+dist.value;
 
-  if (isNaN(m) || isNaN(sec) || isNaN(dist)) {
-    alert("Please fill in all fields correctly");
-    return;
-  }
+  if(isNaN(m)||isNaN(sec)||isNaN(dist)) return;
 
-  const safeSec = Math.min(sec, 59);
-  const time = `${m}:${safeSec.toString().padStart(2,'0')}`;
+  let time=`${m}:${Math.min(sec,59).toString().padStart(2,'0')}`;
 
   s.history.push({
     time,
     dist,
-    type,
-    week: s.week,
-    date: new Date().toISOString()
+    type:type.value
   });
 
-  saveState(s);
-
-  document.getElementById("min").value = "";
-  document.getElementById("sec").value = "";
-  document.getElementById("dist").value = "";
-
+  save(s);
   render();
 }
 
 /* ---------------- DELETE ---------------- */
 
 function del(i){
-  const s = getState();
-  s.history.splice(i, 1);
-  saveState(s);
+  let s=get();
+  s.history.splice(i,1);
+  save(s);
   render();
 }
 
-/* ---------------- TRAINING PLAN (FULL WEEK) ---------------- */
+/* ---------------- TRAINING PLAN (CLICKABLE) ---------------- */
 
 function plan(w){
 
-  if (w < 4){
-    return [
-      "Monday: Easy run + strength",
-      "Tuesday: Intervals (6×400m)",
-      "Wednesday: Recovery jog / bike",
-      "Thursday: Tempo run (15–20 min)",
-      "Friday: Easy run",
-      "Saturday: Long run (60 min)",
-      "Sunday: Rest"
-    ];
-  }
+  const data = {
+    "Mon": {title:"Easy + Strength", desc:"5–8km @ 5:30–6:00/km + gym strength"},
+    "Tue": {title:"Intervals", desc:"6×400m @ 4:00/km, 90s rest"},
+    "Wed": {title:"Recovery", desc:"30 min very easy jog or bike"},
+    "Thu": {title:"Tempo", desc:"20 min @ 4:30–4:45/km"},
+    "Fri": {title:"Easy", desc:"5–7km relaxed"},
+    "Sat": {title:"Long Run", desc:"60–80 min @ 5:30–6:15/km"},
+    "Sun": {title:"Rest", desc:"Full recovery"}
+  };
 
-  if (w < 8){
-    return [
-      "Monday: Easy + strides",
-      "Tuesday: 5×1K intervals",
-      "Wednesday: Recovery",
-      "Thursday: Tempo (20–25 min)",
-      "Friday: Easy run",
-      "Saturday: Long run (70–80 min)",
-      "Sunday: Rest"
-    ];
-  }
-
-  return [
-    "Monday: Easy + drills",
-    "Tuesday: VO2 max intervals (800–1K)",
-    "Wednesday: Recovery",
-    "Thursday: Race pace tempo",
-    "Friday: Easy run",
-    "Saturday: Long run (steady)",
-    "Sunday: Rest"
-  ];
+  return Object.entries(data).map(([k,v])=>`
+    <div onclick="alert('${v.title}\\n\\n${v.desc}')">
+      <b>${k}:</b> ${v.title}
+      <div style="font-size:12px;color:#aaa">${v.desc}</div>
+    </div>
+  `).join("");
 }
 
 /* ---------------- GRAPH ---------------- */
 
 function draw(){
 
-  const s = getState();
-  const canvas = document.getElementById("chart");
-  if (!canvas) return;
+  let s=get();
+  let c=document.getElementById("chart");
+  let ctx=c.getContext("2d");
 
-  const ctx = canvas.getContext("2d");
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0,0,c.width,c.height);
 
-  const runs = s.history.filter(r =>
-    r.type === "Easy" || r.type === "Tempo"
-  );
+  let grouped={};
 
-  if (runs.length === 0) return;
-
-  const values = runs.map(r => {
-    const [m, sec] = r.time.split(":");
-    return ((+m * 60 + +sec) / r.dist);
+  s.history.forEach(r=>{
+    let [m,sec]=r.time.split(":");
+    let pace=((+m*60+ +sec)/r.dist);
+    if(!grouped[r.type]) grouped[r.type]=[];
+    grouped[r.type].push(pace);
   });
 
-  const max = Math.max(...values);
+  let xIndex=0;
 
-  values.forEach((v, i) => {
-    const x = i * 30;
-    const y = canvas.height - (v / max) * 150;
+  Object.keys(grouped).forEach(type=>{
 
-    ctx.fillStyle = "#ff6a00";
-    ctx.fillRect(x, y, 6, 6);
+    let arr=grouped[type];
+    let color=colors[type]||"#fff";
+
+    ctx.strokeStyle=color;
+    ctx.fillStyle=color;
+    ctx.beginPath();
+
+    arr.forEach((v,i)=>{
+
+      let x=i*25;
+      let y=c.height-v*10;
+
+      if(i===0) ctx.moveTo(x,y);
+      else ctx.lineTo(x,y);
+
+      ctx.beginPath();
+      ctx.arc(x,y,4,0,Math.PI*2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(x,y);
+    });
+
+    ctx.stroke();
   });
+
+  // legend
+  document.getElementById("legend").innerHTML =
+    Object.keys(colors).map(k=>
+      `<span style="color:${colors[k]}">● ${k}</span> `
+    ).join(" ");
 }
 
 /* ---------------- RENDER ---------------- */
 
 function render(){
 
-  const s = getState();
+  let s=get();
 
-  document.getElementById("weekLabel").innerText = s.week;
+  weekLabel.innerText=s.week;
 
-  document.getElementById("plan").innerHTML =
-    plan(s.week).map(x => "• " + x).join("<br>");
+  document.getElementById("plan").innerHTML=plan(s.week);
 
-  document.getElementById("list").innerHTML =
-    s.history.map((r, i) =>
-      `<div class="entry">
+  document.getElementById("list").innerHTML=
+    s.history.map((r,i)=>`
+      <div class="entry">
+        <span onclick="del(${i})">✕</span>
         ${r.type} ${r.time} ${r.dist}km
-        <span class="delete" onclick="del(${i})">✕</span>
-      </div>`
-    ).join("");
+      </div>
+    `).join("");
 
   draw();
 }
 
-/* ---------------- NAV ---------------- */
-
-function nav(id, el){
-
-  ["dashboard","progress","settings"].forEach(x =>
-    document.getElementById(x).classList.add("hidden")
-  );
-
-  document.getElementById(id).classList.remove("hidden");
-
-  document.querySelectorAll(".tab").forEach(t =>
-    t.classList.remove("active")
-  );
-
-  el.classList.add("active");
-}
-
-/* ---------------- RESET ---------------- */
-
-function resetAll(){
-  localStorage.clear();
-  render();
-}
-
-/* ---------------- INIT ---------------- */
-
 render();
-
-if ("serviceWorker" in navigator){
-  navigator.serviceWorker.register("service-worker.js");
-}
 
 </script>
 
