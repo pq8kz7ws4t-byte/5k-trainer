@@ -17,7 +17,10 @@
   --accent:#ff6a00;
 }
 
-*{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial;}
+*{
+  box-sizing:border-box;
+  font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial;
+}
 
 body{
   margin:0;
@@ -220,9 +223,9 @@ canvas{
 
 <!-- NAV -->
 <div class="nav">
-  <button onclick="switchTab('plan')" class="active">Plan</button>
-  <button onclick="switchTab('progress')">Progress</button>
-  <button onclick="switchTab('settings')">Settings</button>
+  <button onclick="switchTab('plan',this)" class="active">Plan</button>
+  <button onclick="switchTab('progress',this)">Progress</button>
+  <button onclick="switchTab('settings',this)">Settings</button>
 </div>
 
 <script>
@@ -322,7 +325,7 @@ return [
 ];
 }
 
-/* ───────────── DETAILS (PROGRESSIVE) ───────────── */
+/* ───────────── WORKOUT DETAILS (FIXED + SAFE) ───────────── */
 function getWorkoutDetails(p){
 
 const phase=getPhase(week);
@@ -330,7 +333,7 @@ const prog=getPhaseProgress();
 
 let typeCategory=p.type.includes("Bike")?"🚴 Cycling":p.type.includes("Gym")?"🏋️ Strength":"🏃 Running";
 
-let distance="",pace="",purpose="";
+let distance="Varies", pace="Controlled effort", purpose="General adaptation";
 
 if(phase===1){
 if(p.type.includes("Easy")){
@@ -338,41 +341,41 @@ distance=(4+prog*2).toFixed(1)+" km";
 pace="5:30–6:30/km";
 purpose="Aerobic base";
 }
-if(p.type.includes("Long")){
+else if(p.type.includes("Long")){
 distance=(60+prog*15).toFixed(0)+" min";
-pace="Easy effort";
-purpose="Endurance base";
+pace="Easy";
+purpose="Endurance";
 }
-if(p.type.includes("Bike")){
+else if(p.type.includes("Bike")){
 distance=(40+prog*20).toFixed(0)+" min";
 pace="Zone 2";
 purpose="Aerobic volume";
 }
-if(p.type.includes("Gym")){
+else if(p.type.includes("Gym")){
 distance="45 min";
 pace="N/A";
-purpose="Strength foundation";
+purpose="Strength base";
 }
 }
 
-if(phase===2){
+else if(phase===2){
 if(p.type.includes("Tempo")){
 distance=(15+prog*10).toFixed(0)+" min";
-pace=prog<0.5?"4:45/km":"4:25/km";
-purpose="Threshold build";
+pace=prog<0.5?"4:50/km":"4:25/km";
+purpose="Threshold";
 }
 }
 
-if(phase===3){
+else if(phase===3){
 if(p.type.includes("400")){
 const reps=6+Math.floor(prog*2);
 distance=reps+" × 400m";
 pace=prog<0.5?"4:05/km":"3:50/km";
-purpose="Speed development";
+purpose="Speed";
 }
 }
 
-if(phase===4){
+else if(phase===4){
 if(p.type.includes("800")){
 const reps=5+Math.floor(prog*2);
 distance=reps+" × 800m";
@@ -381,7 +384,7 @@ purpose="VO₂ max";
 }
 }
 
-if(phase===5){
+else if(phase===5){
 if(p.type.includes("Race")){
 const reps=4+Math.floor(prog*2);
 distance=reps+" × 1K/400m";
@@ -390,12 +393,12 @@ purpose="Race specificity";
 }
 }
 
-if(phase===6){
+else if(phase===6){
 if(p.type.includes("Sharpening")){
 const reps=6-Math.floor(prog*2);
 distance=reps+" × 200–400m";
 pace="Fast relaxed";
-purpose="Race readiness";
+purpose="Sharpness";
 }
 }
 
@@ -476,7 +479,7 @@ div.innerHTML=`
 <strong>${p.name}</strong>
 <div class="small">${p.start}–${p.end}</div>
 <div class="small" style="color:${p.color}">${p.focus}</div>
-${active?'<div class="small" style="color:'+p.color+'">CURRENT PHASE</div>':''}
+${active?`<div class="small" style="color:${p.color}">CURRENT PHASE</div>`:""}
 `;
 
 el.appendChild(div);
@@ -485,6 +488,19 @@ el.appendChild(div);
 
 function togglePhases(){
 document.getElementById("phases").classList.toggle("hidden");
+}
+
+/* ───────────── SAFE TAB SWITCH ───────────── */
+function switchTab(tab,el){
+
+document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));
+if(el) el.classList.add("active");
+
+document.getElementById("view-plan").classList.add("hidden");
+document.getElementById("view-progress").classList.add("hidden");
+document.getElementById("view-settings").classList.add("hidden");
+
+document.getElementById("view-"+tab).classList.remove("hidden");
 }
 
 /* ───────────── WEEK ───────────── */
