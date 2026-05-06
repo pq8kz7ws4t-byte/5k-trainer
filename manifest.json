@@ -1,0 +1,22 @@
+{
+  "name": "5K Trainer",
+  "short_name": "5K Trainer",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f2f2f7",
+  "theme_color": "#007aff",
+  "orientation": "portrait",
+  "description": "A simple 5K training app to track workouts, progress, and notes.",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

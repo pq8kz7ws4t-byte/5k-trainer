@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>5K Trainer</title>
+
+<link rel="manifest" href="manifest.json">
+
+<style>
+body {
+  margin:0;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  background:#f2f2f7;
+}
+
+.header {
+  position:fixed;
+  top:0;
+  width:100%;
+  background:white;
+  padding:14px;
+  text-align:center;
+  font-weight:bold;
+  border-bottom:1px solid #ddd;
+  z-index:10;
+}
+
+.content {
+  padding:70px 15px 90px;
+}
+
+.card {
+  background:white;
+  padding:15px;
+  border-radius:12px;
+  margin-bottom:15px;
+  box-shadow:0 1px 3px rgba(0,0,0,0.08);
+}
+
+.tabbar {
+  position:fixed;
+  bottom:0;
+  width:100%;
+  display:flex;
+  background:white;
+  border-top:1px solid #ddd;
+}
+
+.tab {
+  flex:1;
+  text-align:center;
+  padding:10px;
+  font-size:12px;
+  cursor:pointer;
+}
+
+.active {
+  color:#007aff;
+  font-weight:bold;
+}
+
+.hidden { display:none; }
+
+input, textarea {
+  width:100%;
+  padding:10px;
+  border-radius:8px;
+  border:1px solid #ccc;
+  margin-top:6px;
+  box-sizing:border-box;
+}
+
+button {
+  width:100%;
+  padding:10px;
+  margin-top:10px;
+  border:none;
+  border-radius:8px;
+  background:#007aff;
+  color:white;
+  font-size:16px;
+}
+
+label {
+  display:block;
+  margin-bottom:8px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">🏃 5K Trainer</div>
+
+<div class="content">
+
+<!-- PLAN -->
+<div id="plan">
+  <div class="card">
+    <h3>Weekly Plan</h3>
+    <div id="days"></div>
+  </div>
+</div>
+
+<!-- PROGRESS -->
+<div id="progress" class="hidden">
+  <div class="card">
+    <h3>Log 5K Time</h3>
+    <input id="timeInput" placeholder="e.g. 25:30">
+    <button onclick="addTime()">Add Time</button>
+    <canvas id="chart" width="300" height="150"></canvas>
+  </div>
+</div>
+
+<!-- NOTES -->
+<div id="notesTab" class="hidden">
+  <div class="card">
+    <h3>Notes</h3>
+    <textarea id="notes" rows="6" placeholder="How did training feel today?"></textarea>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div id="settings" class="hidden">
+  <div class="card">
+    <h3>Paces</h3>
+
+    <label>Easy pace</label>
+    <input id="easy" placeholder="5:45/km">
+
+    <label>Tempo pace</label>
+    <input id="tempo" placeholder="5:00/km">
+
+    <label>Interval pace</label>
+    <input id="interval" placeholder="4:30/km">
+
+    <button onclick="savePaces()">Save Paces</button>
+  </div>
+</div>
+
+</div>
+
+<!-- TAB BAR -->
+<div class="tabbar">
+  <div class="tab active" onclick="show('plan',this)">Plan</div>
+  <div class="tab" onclick="show('progress',this)">Progress</div>
+  <div class="tab" onclick="show('notesTab',this)">Notes</div>
+  <div class="tab" onclick="show('settings',this)">Settings</div>
+</div>
+
+<script>
+// -------------------- TRAINING PLAN --------------------
+const workouts = [
+  "Strength + Easy Run",
+  "Intervals / Tempo",
+  "Recovery / Bike",
+  "Medium Run",
+  "Easy Run",
+  "Long Run",
+  "Rest"
+];
+
+function loadPlan() {
+  const container = document.getElementById("days");
+  container.innerHTML = "";
+
+  workouts.forEach((w, i) => {
+    const checked = localStorage.getItem("w"+i) === "true";
+
+    container.innerHTML += `
+      <label>
+        <input type="checkbox"
+        ${checked ? "checked" : ""}
+        onchange="localStorage.setItem('w${i}', this.checked)">
+        ${w}
+      </label>
+    `;
+  });
+}
+
+// -------------------- NAVIGATION --------------------
+function show(id, el) {
+  ["plan","progress","notesTab","settings"].forEach(x=>{
+    document.getElementById(x).classList.add("hidden");
+  });
+
+  document.getElementById(id).classList.remove("hidden");
+
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+  el.classList.add("active");
+}
+
+// -------------------- PACE STORAGE --------------------
+function savePaces() {
+  ["easy","tempo","interval"].forEach(id=>{
+    localStorage.setItem(id, document.getElementById(id).value);
+  });
+}
+
+function loadPaces() {
+  ["easy","tempo","interval"].forEach(id=>{
+    document.getElementById(id).value = localStorage.getItem(id) || "";
+  });
+}
+
+// -------------------- PROGRESS TRACKING --------------------
+function addTime() {
+  const val = document.getElementById("timeInput").value;
+
+  let data = JSON.parse(localStorage.getItem("times") || "[]");
+  data.push(val);
+
+  localStorage.setItem("times", JSON.stringify(data));
+
+  drawChart();
+}
+
+function drawChart() {
+  const canvas = document.getElementById("chart");
+  const ctx = canvas.getContext("2d");
+
+  const data = JSON.parse(localStorage.getItem("times") || "[]");
+
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  data.forEach((t, i) => {
+    const parts = t.split(":");
+    const seconds = (+parts[0]*60) + (+parts[1]);
+
+    const x = 20 + i*30;
+    const y = canvas.height - (seconds * 0.5);
+
+    ctx.fillStyle = "#007aff";
+    ctx.fillRect(x, y, 8, 8);
+  });
+}
+
+// -------------------- NOTES --------------------
+document.getElementById("notes").value =
+  localStorage.getItem("notes") || "";
+
+document.getElementById("notes").oninput = (e) => {
+  localStorage.setItem("notes", e.target.value);
+};
+
+// -------------------- INIT --------------------
+loadPlan();
+loadPaces();
+drawChart();
+
+// OPTIONAL: register service worker (for PWA)
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("service-worker.js");
+}
+</script>
+
+</body>
+</html>
