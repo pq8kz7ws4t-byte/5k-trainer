@@ -32,7 +32,9 @@ body{
   font-weight:700;
 }
 
-.content{ padding:70px 15px 110px; }
+.content{
+  padding:70px 15px 110px;
+}
 
 .card{
   background:var(--card);
@@ -41,7 +43,10 @@ body{
   margin-bottom:15px;
 }
 
-h3{ color:var(--orange); margin:0 0 10px; }
+h3{
+  color:var(--orange);
+  margin:0 0 10px;
+}
 
 input, select{
   width:100%;
@@ -94,9 +99,14 @@ button{
   color:#aaa;
 }
 
-.active{ color:var(--orange); font-weight:700; }
+.active{
+  color:var(--orange);
+  font-weight:700;
+}
 
-.hidden{ display:none; }
+.hidden{
+  display:none;
+}
 
 canvas{
   width:100%;
@@ -187,28 +197,28 @@ canvas{
 
 function getState(){
   return {
-    week:+(localStorage.getItem("week")||1),
-    history:JSON.parse(localStorage.getItem("history")||"[]")
+    week: +(localStorage.getItem("week") || 1),
+    history: JSON.parse(localStorage.getItem("history") || "[]")
   };
 }
 
 function saveState(s){
-  localStorage.setItem("week",s.week);
-  localStorage.setItem("history",JSON.stringify(s.history));
+  localStorage.setItem("week", s.week);
+  localStorage.setItem("history", JSON.stringify(s.history));
 }
 
 /* ---------------- WEEK CONTROL ---------------- */
 
 function nextWeek(){
-  let s=getState();
+  const s = getState();
   s.week++;
   saveState(s);
   render();
 }
 
 function undoWeek(){
-  let s=getState();
-  s.week=Math.max(1,s.week-1);
+  const s = getState();
+  s.week = Math.max(1, s.week - 1);
   saveState(s);
   render();
 }
@@ -217,31 +227,43 @@ function undoWeek(){
 
 function saveWorkout(){
 
-  let s=getState();
+  const s = getState();
 
-  let m=parseInt(min.value||0);
-  let sec=parseInt(sec.value||0);
+  const m = parseInt(document.getElementById("min").value);
+  const sec = parseInt(document.getElementById("sec").value);
+  const dist = parseFloat(document.getElementById("dist").value);
+  const type = document.getElementById("type").value;
 
-  if(sec>59) sec=59;
+  if (isNaN(m) || isNaN(sec) || isNaN(dist)) {
+    alert("Please fill in all fields correctly");
+    return;
+  }
 
-  let time=`${m}:${sec.toString().padStart(2,'0')}`;
+  const safeSec = Math.min(sec, 59);
+  const time = `${m}:${safeSec.toString().padStart(2,'0')}`;
 
   s.history.push({
     time,
-    dist:+dist.value,
-    type:type.value,
-    week:s.week
+    dist,
+    type,
+    week: s.week,
+    date: new Date().toISOString()
   });
 
   saveState(s);
+
+  document.getElementById("min").value = "";
+  document.getElementById("sec").value = "";
+  document.getElementById("dist").value = "";
+
   render();
 }
 
 /* ---------------- DELETE ---------------- */
 
 function del(i){
-  let s=getState();
-  s.history.splice(i,1);
+  const s = getState();
+  s.history.splice(i, 1);
   saveState(s);
   render();
 }
@@ -250,38 +272,38 @@ function del(i){
 
 function plan(w){
 
-  if(w < 4){
+  if (w < 4){
     return [
-      "Mon: Easy run + strength (40 min)",
-      "Tue: Intervals (6×400m)",
-      "Wed: Recovery jog / bike",
-      "Thu: Tempo run (15–20 min)",
-      "Fri: Easy run",
-      "Sat: Long run (60 min)",
-      "Sun: Rest"
+      "Monday: Easy run + strength",
+      "Tuesday: Intervals (6×400m)",
+      "Wednesday: Recovery jog / bike",
+      "Thursday: Tempo run (15–20 min)",
+      "Friday: Easy run",
+      "Saturday: Long run (60 min)",
+      "Sunday: Rest"
     ];
   }
 
-  if(w < 8){
+  if (w < 8){
     return [
-      "Mon: Easy + strides",
-      "Tue: 5×1K intervals",
-      "Wed: Recovery",
-      "Thu: Tempo (20–25 min)",
-      "Fri: Easy run",
-      "Sat: Long run (70–80 min)",
-      "Sun: Rest"
+      "Monday: Easy + strides",
+      "Tuesday: 5×1K intervals",
+      "Wednesday: Recovery",
+      "Thursday: Tempo (20–25 min)",
+      "Friday: Easy run",
+      "Saturday: Long run (70–80 min)",
+      "Sunday: Rest"
     ];
   }
 
   return [
-    "Mon: Easy + drills",
-    "Tue: VO2 max (800–1K repeats)",
-    "Wed: Recovery",
-    "Thu: Race pace tempo",
-    "Fri: Easy run",
-    "Sat: Long run (steady)",
-    "Sun: Rest"
+    "Monday: Easy + drills",
+    "Tuesday: VO2 max intervals (800–1K)",
+    "Wednesday: Recovery",
+    "Thursday: Race pace tempo",
+    "Friday: Easy run",
+    "Saturday: Long run (steady)",
+    "Sunday: Rest"
   ];
 }
 
@@ -289,32 +311,32 @@ function plan(w){
 
 function draw(){
 
-  let s=getState();
+  const s = getState();
+  const canvas = document.getElementById("chart");
+  if (!canvas) return;
 
-  let c=document.getElementById("chart");
-  if(!c) return;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  let ctx=c.getContext("2d");
-  ctx.clearRect(0,0,c.width,c.height);
+  const runs = s.history.filter(r =>
+    r.type === "Easy" || r.type === "Tempo"
+  );
 
-  let runs=s.history.filter(r=>r.type==="Easy"||r.type==="Tempo");
+  if (runs.length === 0) return;
 
-  if(runs.length===0) return;
-
-  let values=runs.map(r=>{
-    let [m,sec]=r.time.split(":");
-    let pace=(+m*60+ +sec)/r.dist;
-    return pace;
+  const values = runs.map(r => {
+    const [m, sec] = r.time.split(":");
+    return ((+m * 60 + +sec) / r.dist);
   });
 
-  let max=Math.max(...values);
+  const max = Math.max(...values);
 
-  values.forEach((v,i)=>{
-    let x=i*30;
-    let y=c.height-(v/max)*150;
+  values.forEach((v, i) => {
+    const x = i * 30;
+    const y = canvas.height - (v / max) * 150;
 
-    ctx.fillStyle="#ff6a00";
-    ctx.fillRect(x,y,6,6);
+    ctx.fillStyle = "#ff6a00";
+    ctx.fillRect(x, y, 6, 6);
   });
 }
 
@@ -322,15 +344,15 @@ function draw(){
 
 function render(){
 
-  let s=getState();
+  const s = getState();
 
-  weekLabel.innerText=s.week;
+  document.getElementById("weekLabel").innerText = s.week;
 
-  document.getElementById("plan").innerHTML=
-    plan(s.week).map(x=>"• "+x).join("<br>");
+  document.getElementById("plan").innerHTML =
+    plan(s.week).map(x => "• " + x).join("<br>");
 
-  document.getElementById("list").innerHTML=
-    s.history.map((r,i)=>
+  document.getElementById("list").innerHTML =
+    s.history.map((r, i) =>
       `<div class="entry">
         ${r.type} ${r.time} ${r.dist}km
         <span class="delete" onclick="del(${i})">✕</span>
@@ -342,15 +364,18 @@ function render(){
 
 /* ---------------- NAV ---------------- */
 
-function nav(id,el){
+function nav(id, el){
 
-  ["dashboard","progress","settings"].forEach(x=>{
-    document.getElementById(x).classList.add("hidden");
-  });
+  ["dashboard","progress","settings"].forEach(x =>
+    document.getElementById(x).classList.add("hidden")
+  );
 
   document.getElementById(id).classList.remove("hidden");
 
-  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+  document.querySelectorAll(".tab").forEach(t =>
+    t.classList.remove("active")
+  );
+
   el.classList.add("active");
 }
 
@@ -361,11 +386,11 @@ function resetAll(){
   render();
 }
 
-/* INIT */
+/* ---------------- INIT ---------------- */
 
 render();
 
-if("serviceWorker" in navigator){
+if ("serviceWorker" in navigator){
   navigator.serviceWorker.register("service-worker.js");
 }
 
