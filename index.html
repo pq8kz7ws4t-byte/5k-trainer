@@ -17,10 +17,7 @@
   --accent:#ff6a00;
 }
 
-*{
-  box-sizing:border-box;
-  font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial;
-}
+*{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial;}
 
 body{
   margin:0;
@@ -102,7 +99,6 @@ button.secondary{background:#2a2f3a;}
 .small{
   font-size:12px;
   color:var(--muted);
-  line-height:1.4;
 }
 
 canvas{
@@ -234,7 +230,7 @@ canvas{
 let week=parseInt(localStorage.getItem("week")||"1");
 let workouts=JSON.parse(localStorage.getItem("workouts")||"[]");
 
-/* ───────────── PHASE ENGINE ───────────── */
+/* ───────────── PHASE ───────────── */
 function getPhase(w){
   if(w<=4) return 1;
   if(w<=8) return 2;
@@ -244,87 +240,166 @@ function getPhase(w){
   return 6;
 }
 
-/* ───────────── TRI-MODAL TRAINING PLAN ───────────── */
-function getPhasePlan(w){
+/* ───────────── PROGRESSION ───────────── */
+function getPhaseProgress(){
+  const start=(getPhase(week)-1)*4+1;
+  const t=(week-start)/3;
+  return Math.max(0,Math.min(1,t));
+}
 
+/* ───────────── PLAN ───────────── */
+function getPhasePlan(w){
 const p=getPhase(w);
 
-/* PHASE 1 */
 if(p===1){
 return [
-{day:"Mon",type:"Gym Strength",summary:"Full body strength (light)"},
+{day:"Mon",type:"Gym Strength",summary:"Foundation strength"},
 {day:"Tue",type:"Easy Run",summary:"Aerobic base"},
-{day:"Wed",type:"Bike Aerobic",summary:"Zone 2 endurance"},
-{day:"Thu",type:"Easy Run",summary:"Easy aerobic"},
-{day:"Fri",type:"REST / Mobility",summary:"Recovery"},
-{day:"Sat",type:"Long Run",summary:"60–75 min easy"},
-{day:"Sun",type:"Bike Recovery",summary:"Very light spin"}
+{day:"Wed",type:"Bike Aerobic",summary:"Zone 2"},
+{day:"Thu",type:"Easy Run",summary:"Aerobic"},
+{day:"Fri",type:"REST",summary:"Recovery"},
+{day:"Sat",type:"Long Run",summary:"Endurance"},
+{day:"Sun",type:"Bike Recovery",summary:"Light spin"}
 ];
 }
 
-/* PHASE 2 */
 if(p===2){
 return [
-{day:"Mon",type:"Gym Strength",summary:"Progressive strength"},
-{day:"Tue",type:"Bike Intervals",summary:"2–3 min intervals"},
-{day:"Wed",type:"Easy Run",summary:"Recovery run"},
+{day:"Mon",type:"Gym Strength",summary:"Progressive load"},
+{day:"Tue",type:"Bike Intervals",summary:"Short efforts"},
+{day:"Wed",type:"Easy Run",summary:"Recovery"},
 {day:"Thu",type:"Tempo Run",summary:"Threshold intro"},
-{day:"Fri",type:"Bike Aerobic",summary:"Zone 2 base"},
-{day:"Sat",type:"Long Run",summary:"Endurance"},
+{day:"Fri",type:"Bike Aerobic",summary:"Endurance"},
+{day:"Sat",type:"Long Run",summary:"Build endurance"},
 {day:"Sun",type:"REST",summary:"Recovery"}
 ];
 }
 
-/* PHASE 3 */
 if(p===3){
 return [
-{day:"Mon",type:"Gym Strength",summary:"Power + stability"},
-{day:"Tue",type:"400m Intervals",summary:"6–8 reps"},
-{day:"Wed",type:"Bike Recovery",summary:"Flush ride"},
-{day:"Thu",type:"Tempo Run",summary:"20–30 min"},
+{day:"Mon",type:"Gym Strength",summary:"Power focus"},
+{day:"Tue",type:"400m Intervals",summary:"Speed work"},
+{day:"Wed",type:"Bike Recovery",summary:"Flush"},
+{day:"Thu",type:"Tempo Run",summary:"Threshold"},
 {day:"Fri",type:"Easy Run",summary:"Recovery"},
 {day:"Sat",type:"Long Run",summary:"75–90 min"},
 {day:"Sun",type:"REST",summary:"Recovery"}
 ];
 }
 
-/* PHASE 4 */
 if(p===4){
 return [
 {day:"Mon",type:"Gym Maintenance",summary:"Light strength"},
-{day:"Tue",type:"800m–1K Intervals",summary:"VO₂ max work"},
-{day:"Wed",type:"Bike Aerobic",summary:"Low impact endurance"},
-{day:"Thu",type:"Tempo Short",summary:"Threshold"},
+{day:"Tue",type:"800m Intervals",summary:"VO₂ max"},
+{day:"Wed",type:"Bike Aerobic",summary:"Low impact"},
+{day:"Thu",type:"Tempo",summary:"Controlled"},
 {day:"Fri",type:"REST",summary:"Recovery"},
-{day:"Sat",type:"Long Run (reduced)",summary:"Moderate"},
-{day:"Sun",type:"Bike Recovery",summary:"Easy spin"}
+{day:"Sat",type:"Long Run",summary:"Moderate"},
+{day:"Sun",type:"Bike Recovery",summary:"Easy"}
 ];
 }
 
-/* PHASE 5 */
 if(p===5){
 return [
-{day:"Mon",type:"Gym Activation",summary:"Explosive light work"},
-{day:"Tue",type:"Race Intervals",summary:"1K + 400m reps"},
-{day:"Wed",type:"Bike Recovery",summary:"Easy spin"},
-{day:"Thu",type:"Race Pace",summary:"4:00/km work"},
+{day:"Mon",type:"Gym Activation",summary:"Explosive"},
+{day:"Tue",type:"Race Intervals",summary:"1K/400m"},
+{day:"Wed",type:"Bike Recovery",summary:"Easy"},
+{day:"Thu",type:"Race Pace",summary:"4:00/km"},
 {day:"Fri",type:"Easy Run",summary:"Recovery"},
-{day:"Sat",type:"Long Run (short)",summary:"Reduced"},
+{day:"Sat",type:"Long Run",summary:"Reduced"},
 {day:"Sun",type:"REST",summary:"Recovery"}
 ];
 }
 
-/* PHASE 6 */
 return [
-{day:"Mon",type:"Gym Activation",summary:"Light activation"},
-{day:"Tue",type:"Sharpening",summary:"Short fast reps"},
+{day:"Mon",type:"Activation",summary:"Light gym"},
+{day:"Tue",type:"Sharpening",summary:"Fast reps"},
 {day:"Wed",type:"Bike Recovery",summary:"Very light"},
-{day:"Thu",type:"Race Strides",summary:"Neuromuscular"},
+{day:"Thu",type:"Strides",summary:"Neuromuscular"},
 {day:"Fri",type:"REST",summary:"Recovery"},
-{day:"Sat",type:"Shakeout Run",summary:"Very easy"},
-{day:"Sun",type:"RACE",summary:"Peak performance"}
+{day:"Sat",type:"Shakeout",summary:"Easy"},
+{day:"Sun",type:"RACE",summary:"Peak"}
 ];
+}
 
+/* ───────────── DETAILS (PROGRESSIVE) ───────────── */
+function getWorkoutDetails(p){
+
+const phase=getPhase(week);
+const prog=getPhaseProgress();
+
+let typeCategory=p.type.includes("Bike")?"🚴 Cycling":p.type.includes("Gym")?"🏋️ Strength":"🏃 Running";
+
+let distance="",pace="",purpose="";
+
+if(phase===1){
+if(p.type.includes("Easy")){
+distance=(4+prog*2).toFixed(1)+" km";
+pace="5:30–6:30/km";
+purpose="Aerobic base";
+}
+if(p.type.includes("Long")){
+distance=(60+prog*15).toFixed(0)+" min";
+pace="Easy effort";
+purpose="Endurance base";
+}
+if(p.type.includes("Bike")){
+distance=(40+prog*20).toFixed(0)+" min";
+pace="Zone 2";
+purpose="Aerobic volume";
+}
+if(p.type.includes("Gym")){
+distance="45 min";
+pace="N/A";
+purpose="Strength foundation";
+}
+}
+
+if(phase===2){
+if(p.type.includes("Tempo")){
+distance=(15+prog*10).toFixed(0)+" min";
+pace=prog<0.5?"4:45/km":"4:25/km";
+purpose="Threshold build";
+}
+}
+
+if(phase===3){
+if(p.type.includes("400")){
+const reps=6+Math.floor(prog*2);
+distance=reps+" × 400m";
+pace=prog<0.5?"4:05/km":"3:50/km";
+purpose="Speed development";
+}
+}
+
+if(phase===4){
+if(p.type.includes("800")){
+const reps=5+Math.floor(prog*2);
+distance=reps+" × 800m";
+pace=prog<0.5?"3:55/km":"3:40/km";
+purpose="VO₂ max";
+}
+}
+
+if(phase===5){
+if(p.type.includes("Race")){
+const reps=4+Math.floor(prog*2);
+distance=reps+" × 1K/400m";
+pace="~4:00/km";
+purpose="Race specificity";
+}
+}
+
+if(phase===6){
+if(p.type.includes("Sharpening")){
+const reps=6-Math.floor(prog*2);
+distance=reps+" × 200–400m";
+pace="Fast relaxed";
+purpose="Race readiness";
+}
+}
+
+return {typeCategory,distance,pace,purpose};
 }
 
 /* ───────────── RENDER ───────────── */
@@ -334,7 +409,6 @@ document.getElementById("weekDisplay").innerText="Week "+week;
 
 const plan=getPhasePlan(week);
 const el=document.getElementById("planList");
-
 el.innerHTML="";
 
 plan.forEach(p=>{
@@ -352,16 +426,22 @@ el.appendChild(div);
 });
 
 renderPhases();
-drawChart();
-renderHistory();
 }
 
 /* ───────────── MODAL ───────────── */
 function openModal(p){
+
+const d=getWorkoutDetails(p);
+
 document.getElementById("modal").style.display="flex";
+
 document.getElementById("modalContent").innerHTML=`
-<h3>${p.day} — ${p.type}</h3>
-<p class="small">${p.summary}</p>
+<h3>${d.typeCategory} — ${p.type}</h3>
+
+<div class="card"><b>Distance</b><br>${d.distance}</div>
+<div class="card"><b>Pace</b><br>${d.pace}</div>
+<div class="card"><b>Purpose</b><br>${d.purpose}</div>
+
 <button style="width:100%;margin-top:10px" onclick="closeModal()">Close</button>
 `;
 }
@@ -373,12 +453,12 @@ document.getElementById("modal").style.display="none";
 /* ───────────── PHASE UI ───────────── */
 function getPhases(){
 return [
-{name:"Base",start:1,end:4,color:"#4aa3ff"},
-{name:"Aerobic",start:5,end:8},
-{name:"Threshold",start:9,end:12,color:"#ff6a00"},
-{name:"VO₂ Max",start:13,end:16,color:"#ff4d4d"},
-{name:"Race",start:17,end:20,color:"#b26cff"},
-{name:"Taper",start:21,end:24,color:"#22c55e"}
+{name:"Base Building",start:1,end:4,color:"#4aa3ff",focus:"Aerobic base + strength"},
+{name:"Aerobic Strength",start:5,end:8,color:"#4aa3ff",focus:"Tempo introduction"},
+{name:"Threshold",start:9,end:12,color:"#ff6a00",focus:"Speed development"},
+{name:"VO₂ Max",start:13,end:16,color:"#ff4d4d",focus:"High intensity"},
+{name:"Race",start:17,end:20,color:"#b26cff",focus:"Race specificity"},
+{name:"Taper",start:21,end:24,color:"#22c55e",focus:"Peak readiness"}
 ];
 }
 
@@ -390,10 +470,15 @@ getPhases().forEach(p=>{
 const active=week>=p.start&&week<=p.end;
 const div=document.createElement("div");
 div.className="phase-card"+(active?" phase-active":"");
+div.style.borderLeft="5px solid "+p.color;
+
 div.innerHTML=`
 <strong>${p.name}</strong>
 <div class="small">${p.start}–${p.end}</div>
+<div class="small" style="color:${p.color}">${p.focus}</div>
+${active?'<div class="small" style="color:'+p.color+'">CURRENT PHASE</div>':''}
 `;
+
 el.appendChild(div);
 });
 }
@@ -409,46 +494,7 @@ localStorage.setItem("week",week);
 renderPlan();
 }
 
-/* ───────────── LOGGING ───────────── */
-function addRun(){
-workouts.push({
-id:Date.now(),
-dist:parseFloat(dist.value||0),
-type:type.value
-});
-localStorage.setItem("workouts",JSON.stringify(workouts));
-renderHistory();
-drawChart();
-}
-
-/* ───────────── HISTORY ───────────── */
-function renderHistory(){
-const h=document.getElementById("history");
-h.innerHTML="";
-workouts.slice().reverse().forEach(w=>{
-h.innerHTML+=`<div class="card">${w.type} — ${w.dist} km</div>`;
-});
-}
-
-/* ───────────── CHART (SAFE) ───────────── */
-function drawChart(){
-const c=document.getElementById("chart");
-const ctx=c.getContext("2d");
-ctx.clearRect(0,0,c.width,c.height);
-}
-
-/* ───────────── NAV ───────────── */
-function switchTab(t){
-document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));
-event.target.classList.add("active");
-
-["plan","progress","settings"].forEach(x=>{
-document.getElementById("view-"+x).classList.add("hidden");
-});
-
-document.getElementById("view-"+t).classList.remove("hidden");
-}
-
+/* ───────────── INIT ───────────── */
 renderPlan();
 
 </script>
