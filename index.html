@@ -72,7 +72,10 @@ button{
   font-size:14px;
 }
 
-.delete{ color:#ff4d4d; cursor:pointer; }
+.delete{
+  color:#ff4d4d;
+  cursor:pointer;
+}
 
 .tabbar{
   position:fixed;
@@ -119,16 +122,18 @@ canvas{
   </div>
 
   <div class="card">
-    <h3>This Week Plan</h3>
+    <h3>Weekly Plan</h3>
     <div id="plan"></div>
   </div>
 
   <div class="card">
     <h3>Log Workout</h3>
 
-    <label>Time</label>
-    <input id="min" type="number" placeholder="minutes">
-    <input id="sec" type="number" placeholder="seconds (0-59)">
+    <label>Minutes</label>
+    <input id="min" type="number" placeholder="e.g. 25">
+
+    <label>Seconds</label>
+    <input id="sec" type="number" placeholder="0–59">
 
     <label>Distance (km)</label>
     <input id="dist" type="number" step="0.1">
@@ -141,7 +146,7 @@ canvas{
       <option>Long Run</option>
     </select>
 
-    <button onclick="save()">Save Workout</button>
+    <button onclick="saveWorkout()">Save Workout</button>
   </div>
 
 </div>
@@ -155,7 +160,7 @@ canvas{
   </div>
 
   <div class="card">
-    <h3>Workouts</h3>
+    <h3>Workout History</h3>
     <div id="list"></div>
   </div>
 
@@ -164,7 +169,7 @@ canvas{
 <!-- SETTINGS -->
 <div id="settings" class="hidden">
   <div class="card">
-    <button onclick="reset()">Reset</button>
+    <button onclick="resetAll()">Reset All Data</button>
   </div>
 </div>
 
@@ -180,14 +185,14 @@ canvas{
 
 /* ---------------- STATE ---------------- */
 
-function get(){
+function getState(){
   return {
     week:+(localStorage.getItem("week")||1),
     history:JSON.parse(localStorage.getItem("history")||"[]")
   };
 }
 
-function save(s){
+function saveState(s){
   localStorage.setItem("week",s.week);
   localStorage.setItem("history",JSON.stringify(s.history));
 }
@@ -195,33 +200,27 @@ function save(s){
 /* ---------------- WEEK CONTROL ---------------- */
 
 function nextWeek(){
-  let s=get();
+  let s=getState();
   s.week++;
-  save(s);
+  saveState(s);
   render();
 }
 
 function undoWeek(){
-  let s=get();
+  let s=getState();
   s.week=Math.max(1,s.week-1);
-  save(s);
+  saveState(s);
   render();
 }
 
-/* ---------------- PACING ADJUSTMENT ---------------- */
+/* ---------------- SAVE WORKOUT ---------------- */
 
-function adjustedPace(time,dist){
-  let sec = time*60;
-  return sec / dist;
-}
+function saveWorkout(){
 
-/* ---------------- SAVE ---------------- */
+  let s=getState();
 
-function save(){
-  let s=get();
-
-  let m=+min.value;
-  let sec=+sec.value;
+  let m=parseInt(min.value||0);
+  let sec=parseInt(sec.value||0);
 
   if(sec>59) sec=59;
 
@@ -234,50 +233,85 @@ function save(){
     week:s.week
   });
 
-  save(s);
+  saveState(s);
   render();
 }
 
 /* ---------------- DELETE ---------------- */
 
 function del(i){
-  let s=get();
+  let s=getState();
   s.history.splice(i,1);
-  save(s);
+  saveState(s);
   render();
 }
 
-/* ---------------- PLAN ---------------- */
+/* ---------------- TRAINING PLAN (FULL WEEK) ---------------- */
 
 function plan(w){
-  if(w<4) return ["Base","Easy + strides","Long run"];
-  if(w<8) return ["Threshold","Intervals","Long run"];
-  return ["VO2","Race pace","Long run"];
+
+  if(w < 4){
+    return [
+      "Mon: Easy run + strength (40 min)",
+      "Tue: Intervals (6×400m)",
+      "Wed: Recovery jog / bike",
+      "Thu: Tempo run (15–20 min)",
+      "Fri: Easy run",
+      "Sat: Long run (60 min)",
+      "Sun: Rest"
+    ];
+  }
+
+  if(w < 8){
+    return [
+      "Mon: Easy + strides",
+      "Tue: 5×1K intervals",
+      "Wed: Recovery",
+      "Thu: Tempo (20–25 min)",
+      "Fri: Easy run",
+      "Sat: Long run (70–80 min)",
+      "Sun: Rest"
+    ];
+  }
+
+  return [
+    "Mon: Easy + drills",
+    "Tue: VO2 max (800–1K repeats)",
+    "Wed: Recovery",
+    "Thu: Race pace tempo",
+    "Fri: Easy run",
+    "Sat: Long run (steady)",
+    "Sun: Rest"
+  ];
 }
 
-/* ---------------- GRAPH (FIXED) ---------------- */
+/* ---------------- GRAPH ---------------- */
 
 function draw(){
-  let s=get();
-  let c=document.getElementById("chart");
-  let ctx=c.getContext("2d");
 
+  let s=getState();
+
+  let c=document.getElementById("chart");
+  if(!c) return;
+
+  let ctx=c.getContext("2d");
   ctx.clearRect(0,0,c.width,c.height);
 
   let runs=s.history.filter(r=>r.type==="Easy"||r.type==="Tempo");
 
-  let max=0;
+  if(runs.length===0) return;
 
-  let data=runs.map(r=>{
+  let values=runs.map(r=>{
     let [m,sec]=r.time.split(":");
-    let pace=adjustedPace(+m*60+ +sec,r.dist);
-    max=Math.max(max,pace);
+    let pace=(+m*60+ +sec)/r.dist;
     return pace;
   });
 
-  data.forEach((p,i)=>{
+  let max=Math.max(...values);
+
+  values.forEach((v,i)=>{
     let x=i*30;
-    let y=c.height-(p/max)*150;
+    let y=c.height-(v/max)*150;
 
     ctx.fillStyle="#ff6a00";
     ctx.fillRect(x,y,6,6);
@@ -287,7 +321,8 @@ function draw(){
 /* ---------------- RENDER ---------------- */
 
 function render(){
-  let s=get();
+
+  let s=getState();
 
   weekLabel.innerText=s.week;
 
@@ -308,6 +343,7 @@ function render(){
 /* ---------------- NAV ---------------- */
 
 function nav(id,el){
+
   ["dashboard","progress","settings"].forEach(x=>{
     document.getElementById(x).classList.add("hidden");
   });
@@ -318,9 +354,9 @@ function nav(id,el){
   el.classList.add("active");
 }
 
-/* RESET */
+/* ---------------- RESET ---------------- */
 
-function reset(){
+function resetAll(){
   localStorage.clear();
   render();
 }
