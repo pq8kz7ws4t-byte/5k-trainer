@@ -1,402 +1,407 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#ff6a00" />
+<link rel="manifest" href="manifest.json" />
+
 <title>5K Coach</title>
 
 <style>
 :root{
-  --orange:#ff6a00;
-  --bg:#0f0f10;
-  --card:#1c1c1f;
-  --text:#fff;
+  --bg:#0f1115;
+  --card:#171a21;
+  --muted:#8b93a7;
+  --text:#ffffff;
+  --accent:#ff6a00;
+  --blue:#4aa3ff;
+  --red:#ff4d4d;
+  --purple:#b26cff;
 }
 
+*{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial;}
 body{
   margin:0;
-  font-family:-apple-system;
   background:var(--bg);
   color:var(--text);
+  padding-bottom:70px;
 }
 
-.header{
-  position:fixed;
-  top:0;
-  width:100%;
-  background:#1c1c1f;
-  padding:14px;
-  text-align:center;
-  color:var(--orange);
+header{
+  padding:16px;
+  font-size:20px;
   font-weight:700;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
 }
 
-/* ---------------- PAGES ---------------- */
-
-.page{
-  display:none;
-  padding:70px 15px 110px;
+.week-pill{
+  background:var(--card);
+  padding:6px 10px;
+  border-radius:12px;
+  font-size:12px;
+  color:var(--muted);
 }
 
-.activePage{
-  display:block;
-}
+.container{padding:12px;}
 
 .card{
   background:var(--card);
-  padding:15px;
   border-radius:14px;
-  margin-bottom:15px;
+  padding:14px;
+  margin-bottom:12px;
 }
 
-h3{
-  color:var(--orange);
-  margin:0 0 10px;
+.row{display:flex;justify-content:space-between;align-items:center;}
+
+button{
+  background:var(--accent);
+  border:none;
+  color:#fff;
+  padding:10px;
+  border-radius:10px;
+  font-weight:600;
 }
 
-input, select{
+button.secondary{
+  background:#2a2f3a;
+}
+
+.nav{
+  position:fixed;
+  bottom:0;
+  left:0;
+  right:0;
+  display:flex;
+  background:#12141a;
+  border-top:1px solid #222;
+}
+
+.nav button{
+  flex:1;
+  background:none;
+  padding:14px;
+  color:var(--muted);
+  font-size:12px;
+}
+
+.nav button.active{
+  color:var(--accent);
+}
+
+.hidden{display:none;}
+
+.badge{
+  font-size:11px;
+  padding:4px 8px;
+  border-radius:10px;
+  background:#222;
+  color:var(--muted);
+}
+
+input,select{
   width:100%;
   padding:10px;
   margin-top:6px;
   border-radius:10px;
-  border:1px solid #333;
-  background:#111;
-  color:white;
-}
-
-button{
-  width:100%;
-  padding:12px;
-  margin-top:10px;
   border:none;
-  border-radius:10px;
-  background:var(--orange);
-  color:white;
-  font-weight:600;
-}
-
-.entry{
-  padding:10px;
-  border-bottom:1px solid #333;
-  cursor:pointer;
-}
-
-.delete{
-  float:right;
-  color:#ff4d4d;
-}
-
-/* ---------------- NAV ---------------- */
-
-.tabbar{
-  position:fixed;
-  bottom:0;
-  width:100%;
-  display:flex;
-  background:#1c1c1f;
-  border-top:1px solid #333;
-}
-
-.tab{
-  flex:1;
-  text-align:center;
-  padding:10px;
-  font-size:12px;
-  color:#aaa;
-}
-
-.active{
-  color:var(--orange);
-  font-weight:700;
+  background:#222;
+  color:#fff;
 }
 
 canvas{
   width:100%;
-  height:200px;
+  background:#111;
+  border-radius:12px;
+  margin-top:10px;
 }
+
+.modal{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.7);
+  display:none;
+  align-items:flex-end;
+}
+
+.modal-content{
+  background:var(--card);
+  padding:16px;
+  border-radius:16px 16px 0 0;
+  width:100%;
+}
+.small{font-size:12px;color:var(--muted);}
 </style>
 </head>
 
 <body>
 
-<div class="header">🔥 5K COACH</div>
+<header>
+  <div>5K Coach</div>
+  <div class="week-pill" id="weekDisplay">Week 1</div>
+</header>
 
-<!-- DASHBOARD -->
-<div id="dashboard" class="page activePage">
+<div class="container">
 
-  <div class="card">
-    <h3>Week</h3>
-    <div>Current: <span id="weekLabel"></span></div>
-    <button onclick="nextWeek()">Next Week</button>
-    <button onclick="undoWeek()">Undo Week</button>
+<!-- PLAN -->
+<div id="view-plan">
+
+  <div class="card row">
+    <button onclick="changeWeek(-1)" class="secondary">Undo Week</button>
+    <button onclick="changeWeek(1)">Next Week</button>
   </div>
 
-  <div class="card">
-    <h3>Log Workout</h3>
-
-    <input id="min" type="number" placeholder="minutes">
-    <input id="sec" type="number" placeholder="seconds">
-    <input id="dist" type="number" step="0.1" placeholder="km">
-
-    <select id="type">
-      <option>Easy</option>
-      <option>Tempo</option>
-      <option>Intervals</option>
-      <option>Long Run</option>
-    </select>
-
-    <button onclick="saveWorkout()">Save Workout</button>
-  </div>
-
-  <div class="card">
-    <h3>Weekly Plan</h3>
-    <div id="plan"></div>
-  </div>
+  <div id="planList"></div>
 
 </div>
 
 <!-- PROGRESS -->
-<div id="progress" class="page">
+<div id="view-progress" class="hidden">
 
   <div class="card">
-    <h3>Fitness Trend</h3>
-    <canvas id="chart"></canvas>
-    <div id="legend"></div>
+    <div class="row">
+      <div>Log Run</div>
+    </div>
+
+    <label>Minutes</label>
+    <input id="min" type="number" />
+
+    <label>Seconds</label>
+    <input id="sec" type="number" />
+
+    <label>Distance (km)</label>
+    <input id="dist" type="number" step="0.1" />
+
+    <label>Type</label>
+    <select id="type">
+      <option>Easy</option>
+      <option>Tempo</option>
+      <option>Intervals</option>
+      <option>Long</option>
+    </select>
+
+    <button onclick="addRun()" style="margin-top:10px;">Save Run</button>
   </div>
 
   <div class="card">
-    <h3>History</h3>
-    <div id="list"></div>
+    <div>Performance Trend</div>
+    <canvas id="chart" height="160"></canvas>
   </div>
 
+  <div id="history"></div>
 </div>
 
 <!-- SETTINGS -->
-<div id="settings" class="page">
-
+<div id="view-settings" class="hidden">
   <div class="card">
-    <button onclick="resetAll()">Reset All</button>
+    <div>Settings</div>
+    <p class="small">Data stored locally on device</p>
+    <button class="secondary" onclick="clearAll()">Reset Data</button>
   </div>
+</div>
 
+</div>
+
+<!-- MODAL -->
+<div class="modal" id="modal">
+  <div class="modal-content" id="modalContent"></div>
 </div>
 
 <!-- NAV -->
-<div class="tabbar">
-  <div class="tab active" onclick="nav('dashboard',this)">Plan</div>
-  <div class="tab" onclick="nav('progress',this)">Progress</div>
-  <div class="tab" onclick="nav('settings',this)">Settings</div>
+<div class="nav">
+  <button onclick="switchTab('plan')" class="active">Plan</button>
+  <button onclick="switchTab('progress')">Progress</button>
+  <button onclick="switchTab('settings')">Settings</button>
 </div>
 
 <script>
+let week = parseInt(localStorage.getItem('week') || "1");
+let workouts = JSON.parse(localStorage.getItem('workouts') || "[]");
 
-/* ---------------- STATE ---------------- */
+const planBase = [
+  {day:"Monday",type:"Easy + Strength",desc:"Easy run + body strength",base:"5-6km easy"},
+  {day:"Tuesday",type:"Intervals",desc:"Speed work",base:"6×400m or 5×1K"},
+  {day:"Wednesday",type:"Recovery",desc:"Light jog or rest",base:"3-4km easy"},
+  {day:"Thursday",type:"Tempo",desc:"Threshold run",base:"20 min tempo"},
+  {day:"Friday",type:"Easy",desc:"Relaxed pace",base:"5km easy"},
+  {day:"Saturday",type:"Long Run",desc:"Endurance",base:"8-12km"},
+  {day:"Sunday",type:"Rest",desc:"Full recovery",base:"Rest"}
+];
 
-function getState(){
-  return {
-    week:+(localStorage.getItem("week")||1),
-    history:JSON.parse(localStorage.getItem("history")||"[]")
-  };
+function intensity(){
+  return 1 + (week-1)*0.03;
 }
 
-function saveState(s){
-  localStorage.setItem("week",s.week);
-  localStorage.setItem("history",JSON.stringify(s.history));
-}
+function renderPlan(){
+  document.getElementById("weekDisplay").innerText = "Week " + week;
+  const el = document.getElementById("planList");
+  el.innerHTML = "";
 
-/* ---------------- NAV ---------------- */
-
-function nav(page,el){
-  document.querySelectorAll(".page").forEach(p=>p.classList.remove("activePage"));
-  document.getElementById(page).classList.add("activePage");
-
-  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
-  el.classList.add("active");
-}
-
-/* ---------------- WEEK ---------------- */
-
-function nextWeek(){
-  let s=getState();
-  s.week++;
-  saveState(s);
-  render();
-}
-
-function undoWeek(){
-  let s=getState();
-  s.week=Math.max(1,s.week-1);
-  saveState(s);
-  render();
-}
-
-/* ---------------- SAVE ---------------- */
-
-function saveWorkout(){
-
-  let s=getState();
-
-  const m = +document.getElementById("min").value;
-  const sec = +document.getElementById("sec").value;
-  const dist = +document.getElementById("dist").value;
-  const type = document.getElementById("type").value;
-
-  if(!m || !sec || !dist){
-    alert("Fill all fields");
-    return;
-  }
-
-  const time = `${m}:${Math.min(sec,59).toString().padStart(2,'0')}`;
-
-  s.history.push({time,dist,type});
-
-  saveState(s);
-
-  document.getElementById("min").value="";
-  document.getElementById("sec").value="";
-  document.getElementById("dist").value="";
-
-  render();
-}
-
-/* ---------------- DELETE ---------------- */
-
-function del(i){
-  let s=getState();
-  s.history.splice(i,1);
-  saveState(s);
-  render();
-}
-
-/* ---------------- PLAN ---------------- */
-
-function showWorkout(i){
-
-  const data = [
-    ["Monday","Easy + Strength","5–8km @ 5:30–6:00/km"],
-    ["Tuesday","Intervals","6×400m @ 4:00/km"],
-    ["Wednesday","Recovery","30–40 min easy"],
-    ["Thursday","Tempo","20 min @ 4:30–4:45/km"],
-    ["Friday","Easy","5–7km relaxed"],
-    ["Saturday","Long Run","60–80 min easy"],
-    ["Sunday","Rest","Full recovery"]
-  ][i];
-
-  alert(`${data[0]}\n\n${data[1]}\n\n${data[2]}`);
-}
-
-function plan(){
-
-  const days = [
-    "Monday: Easy + Strength",
-    "Tuesday: Intervals",
-    "Wednesday: Recovery",
-    "Thursday: Tempo",
-    "Friday: Easy",
-    "Saturday: Long Run",
-    "Sunday: Rest"
-  ];
-
-  return days.map((d,i)=>
-    `<div class="entry" onclick="showWorkout(${i})">${d}</div>`
-  ).join("");
-}
-
-/* ---------------- GRAPH (FIXED) ---------------- */
-
-function draw(){
-
-  let s=getState();
-  let c=document.getElementById("chart");
-  let ctx=c.getContext("2d");
-
-  c.width = c.offsetWidth;
-  c.height = 200;
-
-  ctx.clearRect(0,0,c.width,c.height);
-
-  const colors = {
-    "Easy":"#4fc3f7",
-    "Tempo":"#ff9800",
-    "Intervals":"#f44336",
-    "Long Run":"#9c27b0"
-  };
-
-  let grouped={};
-
-  s.history.forEach(r=>{
-    let [m,sec]=r.time.split(":");
-    let pace=((+m*60+ +sec)/r.dist);
-
-    if(!grouped[r.type]) grouped[r.type]=[];
-    grouped[r.type].push(pace);
+  planBase.forEach((p,i)=>{
+    const div = document.createElement("div");
+    div.className="card";
+    div.innerHTML = `
+      <div class="row">
+        <strong>${p.day}</strong>
+        <span class="badge">${p.type}</span>
+      </div>
+      <div class="small">${p.base}</div>
+    `;
+    div.onclick=()=>openModal(p);
+    el.appendChild(div);
   });
 
-  Object.keys(grouped).forEach(type=>{
+  drawChart();
+  renderHistory();
+}
 
-    let arr=grouped[type];
-    let color=colors[type]||"#fff";
-
-    ctx.beginPath();
-    ctx.strokeStyle=color;
-    ctx.fillStyle=color;
-
-    arr.forEach((v,i)=>{
-
-      let x = (i+1)*(c.width/(arr.length+1));
-      let y = c.height - v*10;
-
-      if(i===0) ctx.moveTo(x,y);
-      else ctx.lineTo(x,y);
-
-    });
-
-    ctx.stroke();
-
-    arr.forEach((v,i)=>{
-
-      let x = (i+1)*(c.width/(arr.length+1));
-      let y = c.height - v*10;
-
-      ctx.beginPath();
-      ctx.arc(x,y,5,0,Math.PI*2);
-      ctx.fillStyle=color;
-      ctx.fill();
-
-    });
-
-  });
-
-  document.getElementById("legend").innerHTML = `
-    <span style="color:#4fc3f7">● Easy</span>
-    <span style="color:#ff9800">● Tempo</span>
-    <span style="color:#f44336">● Intervals</span>
-    <span style="color:#9c27b0">● Long Run</span>
+function openModal(p){
+  document.getElementById("modal").style.display="flex";
+  document.getElementById("modalContent").innerHTML=`
+    <h3>${p.day} - ${p.type}</h3>
+    <p>${p.desc}</p>
+    <p class="small">Focus: ${p.base}</p>
+    <button onclick="closeModal()">Close</button>
   `;
 }
 
-/* ---------------- RENDER ---------------- */
-
-function render(){
-
-  let s=getState();
-
-  weekLabel.innerText=s.week;
-
-  document.getElementById("plan").innerHTML=plan();
-
-  document.getElementById("list").innerHTML=
-    s.history.map((r,i)=>
-      `<div class="entry">
-        ${r.type} ${r.time} ${r.dist}km
-        <span class="delete" onclick="del(${i})">✕</span>
-      </div>`
-    ).join("");
-
-  draw();
+function closeModal(){
+  document.getElementById("modal").style.display="none";
 }
 
-render();
+function changeWeek(d){
+  week = Math.max(1, week + d);
+  localStorage.setItem("week",week);
+  renderPlan();
+}
 
+function switchTab(tab){
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+
+  ["plan","progress","settings"].forEach(t=>{
+    document.getElementById("view-"+t).classList.add("hidden");
+  });
+
+  document.getElementById("view-"+tab).classList.remove("hidden");
+
+  if(tab==="progress"){
+    drawChart();
+    renderHistory();
+  }
+}
+
+function addRun(){
+  const m=parseInt(min.value||0);
+  const s=parseInt(sec.value||0);
+  const d=parseFloat(dist.value||0);
+  const type=typeSel().value;
+
+  if(!d) return;
+
+  workouts.push({
+    id:Date.now(),
+    time:m*60+s,
+    dist:d,
+    type,
+    date:new Date().toISOString()
+  });
+
+  localStorage.setItem("workouts",JSON.stringify(workouts));
+  renderHistory();
+  drawChart();
+}
+
+function typeSel(){return document.getElementById("type");}
+
+function renderHistory(){
+  const h=document.getElementById("history");
+  h.innerHTML="";
+  workouts.slice().reverse().forEach(w=>{
+    const pace=(w.time/w.dist/60).toFixed(2);
+    const div=document.createElement("div");
+    div.className="card";
+    div.innerHTML=`
+      <div class="row">
+        <div>${w.type}</div>
+        <button onclick="del(${w.id})">Delete</button>
+      </div>
+      <div class="small">${w.dist} km • ${pace} min/km</div>
+    `;
+    h.appendChild(div);
+  });
+}
+
+function del(id){
+  workouts=workouts.filter(w=>w.id!==id);
+  localStorage.setItem("workouts",JSON.stringify(workouts));
+  renderHistory();
+  drawChart();
+}
+
+function drawChart(){
+  const c=document.getElementById("chart");
+  if(!c) return;
+  const ctx=c.getContext("2d");
+
+  const dpr=window.devicePixelRatio||1;
+  c.width=c.offsetWidth*dpr;
+  c.height=160*dpr;
+  ctx.scale(dpr,dpr);
+
+  ctx.clearRect(0,0,c.width,c.height);
+
+  const data=workouts.slice(-20);
+  if(data.length<2) return;
+
+  const w=c.offsetWidth;
+  const h=160;
+
+  const max=Math.max(...data.map(d=>d.time/d.dist/60));
+  const min=Math.min(...data.map(d=>d.time/d.dist/60));
+
+  function color(t){
+    return t==="Easy"?"#4aa3ff":
+           t==="Tempo"?"#ff6a00":
+           t==="Intervals"?"#ff4d4d":
+           "#b26cff";
+  }
+
+  ctx.beginPath();
+
+  data.forEach((d,i)=>{
+    const pace=d.time/d.dist/60;
+    const x=i/(data.length-1)*w;
+    const y=h-((pace-min)/(max-min||1))*h;
+
+    ctx.fillStyle=color(d.type);
+    ctx.beginPath();
+    ctx.arc(x,y,4,0,Math.PI*2);
+    ctx.fill();
+
+    if(i>0){
+      const prev=data[i-1];
+      const py=h-(((prev.time/prev.dist/60)-min)/(max-min||1))*h;
+      const px=(i-1)/(data.length-1)*w;
+      ctx.strokeStyle="#444";
+      ctx.beginPath();
+      ctx.moveTo(px,py);
+      ctx.lineTo(x,y);
+      ctx.stroke();
+    }
+  });
+}
+
+function clearAll(){
+  localStorage.clear();
+  workouts=[];
+  week=1;
+  renderPlan();
+}
+
+renderPlan();
 </script>
 
 </body>
