@@ -1,27 +1,29 @@
-const CACHE_NAME = "5k-trainer-v1";
+const CACHE_NAME = "5k-trainer-v2";
 
+// Only cache core app shell
 const ASSETS = [
   "./",
   "./index.html",
   "./manifest.json"
 ];
 
-// -------------------- INSTALL --------------------
+// ---------------- INSTALL ----------------
 self.addEventListener("install", event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(ASSETS);
-    })
+    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
   );
+
+  // Force immediate activation (IMPORTANT FIX)
   self.skipWaiting();
 });
 
-// -------------------- ACTIVATE --------------------
+// ---------------- ACTIVATE ----------------
 self.addEventListener("activate", event => {
   event.waitUntil(
     caches.keys().then(keys => {
       return Promise.all(
         keys.map(key => {
+          // delete old versions
           if (key !== CACHE_NAME) {
             return caches.delete(key);
           }
@@ -29,26 +31,29 @@ self.addEventListener("activate", event => {
       );
     })
   );
+
+  // Take control immediately
   self.clients.claim();
 });
 
-// -------------------- FETCH (OFFLINE SUPPORT) --------------------
+// ---------------- FETCH STRATEGY ----------------
+// Network-first (THIS FIXES UPDATE PROBLEMS)
 self.addEventListener("fetch", event => {
   event.respondWith(
-    caches.match(event.request).then(cached => {
-      if (cached) return cached;
-
-      return fetch(event.request).then(response => {
-        return caches.open(CACHE_NAME).then(cache => {
-          cache.put(event.request, response.clone());
-          return response;
+    fetch(event.request)
+      .then(response => {
+        // Clone and store fresh version
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then(cache => {
+          cache.put(event.request, clone);
         });
-      }).catch(() => {
-        // fallback if offline and not cached
-        if (event.request.mode === "navigate") {
-          return caches.match("./index.html");
-        }
-      });
-    })
+        return response;
+      })
+      .catch(() => {
+        // Offline fallback
+        return caches.match(event.request).then(res => {
+          return res || caches.match("./index.html");
+        });
+      })
   );
 });
