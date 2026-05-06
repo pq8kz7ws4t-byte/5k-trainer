@@ -11,7 +11,6 @@
   --bg:#0f0f10;
   --card:#1c1c1f;
   --text:#fff;
-  --muted:#aaa;
 }
 
 body{
@@ -74,15 +73,13 @@ button{
 }
 
 .entry{
-  padding:8px;
+  padding:10px;
   border-bottom:1px solid #333;
-  display:flex;
-  justify-content:space-between;
-  font-size:14px;
   cursor:pointer;
 }
 
 .delete{
+  float:right;
   color:#ff4d4d;
 }
 
@@ -125,15 +122,10 @@ canvas{
 <div id="dashboard" class="page activePage">
 
   <div class="card">
-    <h3>Week Control</h3>
-    <div>Week: <span id="weekLabel"></span></div>
+    <h3>Week</h3>
+    <div>Current: <span id="weekLabel"></span></div>
     <button onclick="nextWeek()">Next Week</button>
     <button onclick="undoWeek()">Undo Week</button>
-  </div>
-
-  <div class="card">
-    <h3>Weekly Plan</h3>
-    <div id="plan"></div>
   </div>
 
   <div class="card">
@@ -151,6 +143,11 @@ canvas{
     </select>
 
     <button onclick="saveWorkout()">Save Workout</button>
+  </div>
+
+  <div class="card">
+    <h3>Weekly Plan</h3>
+    <div id="plan"></div>
   </div>
 
 </div>
@@ -206,7 +203,6 @@ function saveState(s){
 /* ---------------- NAV ---------------- */
 
 function nav(page,el){
-
   document.querySelectorAll(".page").forEach(p=>p.classList.remove("activePage"));
   document.getElementById(page).classList.add("activePage");
 
@@ -230,15 +226,15 @@ function undoWeek(){
   render();
 }
 
-/* ---------------- SAVE (FIXED) ---------------- */
+/* ---------------- SAVE ---------------- */
 
 function saveWorkout(){
 
   let s=getState();
 
-  const m = document.getElementById("min").value;
-  const sec = document.getElementById("sec").value;
-  const dist = document.getElementById("dist").value;
+  const m = +document.getElementById("min").value;
+  const sec = +document.getElementById("sec").value;
+  const dist = +document.getElementById("dist").value;
   const type = document.getElementById("type").value;
 
   if(!m || !sec || !dist){
@@ -248,11 +244,7 @@ function saveWorkout(){
 
   const time = `${m}:${Math.min(sec,59).toString().padStart(2,'0')}`;
 
-  s.history.push({
-    time,
-    dist:+dist,
-    type
-  });
+  s.history.push({time,dist,type});
 
   saveState(s);
 
@@ -272,19 +264,38 @@ function del(i){
   render();
 }
 
-/* ---------------- PLAN ---------------- */
+/* ---------------- TRAINING PLAN (CLICKABLE + SAFE) ---------------- */
 
-function plan(w){
+function showWorkout(i){
 
-  return [
-    "Mon: Easy + strength",
-    "Tue: Intervals (6×400m)",
-    "Wed: Recovery",
-    "Thu: Tempo run",
-    "Fri: Easy",
-    "Sat: Long run",
-    "Sun: Rest"
-  ].map(x=>`• ${x}`).join("<br>");
+  const w = [
+    ["Monday","Easy + Strength","5–8km @ 5:30–6:00/km + strength"],
+    ["Tuesday","Intervals","6×400m @ ~4:00/km pace"],
+    ["Wednesday","Recovery","30–40 min easy"],
+    ["Thursday","Tempo","20 min @ 4:30–4:45/km"],
+    ["Friday","Easy","5–7km relaxed"],
+    ["Saturday","Long Run","60–80 min easy pace"],
+    ["Sunday","Rest","Full recovery"]
+  ][i];
+
+  alert(`${w[0]}\n\n${w[1]}\n\n${w[2]}`);
+}
+
+function plan(){
+
+  const data = [
+    "Monday: Easy + Strength",
+    "Tuesday: Intervals (6×400m)",
+    "Wednesday: Recovery",
+    "Thursday: Tempo (20 min)",
+    "Friday: Easy run",
+    "Saturday: Long run",
+    "Sunday: Rest"
+  ];
+
+  return data.map((x,i)=>
+    `<div class="entry" onclick="showWorkout(${i})">${x}</div>`
+  ).join("");
 }
 
 /* ---------------- GRAPH ---------------- */
@@ -297,34 +308,57 @@ function draw(){
 
   ctx.clearRect(0,0,c.width,c.height);
 
-  let runs=s.history;
+  const colors = {
+    "Easy":"#4fc3f7",
+    "Tempo":"#ff9800",
+    "Intervals":"#f44336",
+    "Long Run":"#9c27b0"
+  };
 
-  let values=runs.map(r=>{
+  let grouped={};
+
+  s.history.forEach(r=>{
     let [m,sec]=r.time.split(":");
-    return ((+m*60+ +sec)/r.dist);
+    let pace=((+m*60+ +sec)/r.dist);
+
+    if(!grouped[r.type]) grouped[r.type]=[];
+    grouped[r.type].push(pace);
   });
 
-  let max=Math.max(...values,1);
+  Object.keys(grouped).forEach(type=>{
 
-  ctx.beginPath();
+    let arr=grouped[type];
+    let color=colors[type]||"#fff";
 
-  values.forEach((v,i)=>{
+    ctx.strokeStyle=color;
+    ctx.fillStyle=color;
+    ctx.beginPath();
 
-    let x=i*25;
-    let y=c.height-(v/max)*150;
+    arr.forEach((v,i)=>{
 
-    ctx.strokeStyle="#ff6a00";
-    ctx.fillStyle="#ff6a00";
+      let x=i*25;
+      let y=c.height - v*10;
 
-    ctx.lineTo(x,y);
-    ctx.arc(x,y,4,0,Math.PI*2);
-    ctx.moveTo(x,y);
+      if(i===0) ctx.moveTo(x,y);
+      else ctx.lineTo(x,y);
+
+      // filled circle (important fix)
+      ctx.arc(x,y,4,0,Math.PI*2);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(x,y);
+    });
+
+    ctx.stroke();
   });
 
-  ctx.stroke();
-
-  document.getElementById("legend").innerHTML =
-    `<span style="color:#ff6a00">● Pace trend</span>`;
+  document.getElementById("legend").innerHTML = `
+    <span style="color:#4fc3f7">● Easy</span>
+    <span style="color:#ff9800">● Tempo</span>
+    <span style="color:#f44336">● Intervals</span>
+    <span style="color:#9c27b0">● Long Run</span>
+  `;
 }
 
 /* ---------------- RENDER ---------------- */
@@ -335,7 +369,7 @@ function render(){
 
   weekLabel.innerText=s.week;
 
-  document.getElementById("plan").innerHTML=plan(s.week);
+  document.getElementById("plan").innerHTML=plan();
 
   document.getElementById("list").innerHTML=
     s.history.map((r,i)=>
