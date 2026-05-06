@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>5K Coach</title>
+<title>5K Coach Pro</title>
 
 <style>
 :root{
@@ -16,7 +16,7 @@
 
 body{
   margin:0;
-  font-family:-apple-system, BlinkMacSystemFont, sans-serif;
+  font-family:-apple-system;
   background:var(--bg);
   color:var(--text);
 }
@@ -28,14 +28,11 @@ body{
   background:#1c1c1f;
   padding:14px;
   text-align:center;
-  font-weight:700;
   color:var(--orange);
-  border-bottom:1px solid #333;
+  font-weight:700;
 }
 
-.content{
-  padding:70px 15px 100px;
-}
+.content{ padding:70px 15px 110px; }
 
 .card{
   background:var(--card);
@@ -44,28 +41,35 @@ body{
   margin-bottom:15px;
 }
 
-h3{ color:var(--orange); margin-top:0; }
+h3{ color:var(--orange); margin:0 0 10px 0; }
 
 .small{ color:var(--muted); font-size:13px; }
+
+input, select{
+  width:100%;
+  padding:10px;
+  margin-top:6px;
+  border-radius:10px;
+  border:1px solid #333;
+  background:#111;
+  color:white;
+}
 
 button{
   width:100%;
   padding:12px;
+  margin-top:10px;
   border:none;
   border-radius:10px;
   background:var(--orange);
   color:white;
-  font-size:16px;
   font-weight:600;
-  margin-top:10px;
 }
 
-/* ---------------- WHEEL PICKER ---------------- */
-
+/* picker */
 .picker-row{
   display:flex;
   gap:10px;
-  justify-content:space-between;
 }
 
 .wheel{
@@ -73,27 +77,39 @@ button{
   height:140px;
   overflow-y:scroll;
   scroll-snap-type:y mandatory;
-  border:1px solid #333;
-  border-radius:10px;
   background:#111;
+  border-radius:10px;
+  border:1px solid #333;
 }
 
 .wheel div{
   height:40px;
   display:flex;
-  align-items:center;
   justify-content:center;
+  align-items:center;
   scroll-snap-align:center;
-  color:white;
-  font-size:18px;
 }
 
-.wheel::-webkit-scrollbar{
-  display:none;
+/* highlight center */
+.wheel div:hover{
+  background:rgba(255,106,0,0.2);
 }
 
-/* ---------------- NAV ---------------- */
+/* list */
+.entry{
+  padding:8px;
+  border-bottom:1px solid #333;
+  display:flex;
+  justify-content:space-between;
+  font-size:14px;
+}
 
+.delete{
+  color:#ff4d4d;
+  cursor:pointer;
+}
+
+/* nav */
 .tabbar{
   position:fixed;
   bottom:0;
@@ -115,12 +131,16 @@ button{
 
 .hidden{ display:none; }
 
+canvas{
+  width:100%;
+  height:180px;
+}
 </style>
 </head>
 
 <body>
 
-<div class="header">🔥 5K COACH</div>
+<div class="header">🔥 5K COACH PRO</div>
 
 <div class="content">
 
@@ -128,44 +148,61 @@ button{
 <div id="dashboard">
 
   <div class="card">
-    <h3>Phase</h3>
-    <div id="phase"></div>
-    <div class="small">Goal: 20:00 (4:00/km)</div>
+    <h3>Week Control</h3>
+    <input type="number" id="weekInput" min="1">
+    <button onclick="setWeek()">Set Week</button>
+    <div class="small">Plan updates when you change week</div>
   </div>
 
   <div class="card">
-    <h3>This Week</h3>
-    <div id="week"></div>
+    <h3>This Week Plan</h3>
+    <div id="plan"></div>
   </div>
 
   <div class="card">
-    <h3>Log 5K (Scroll Input)</h3>
+    <h3>Log Workout</h3>
 
+    <label>Time</label>
     <div class="picker-row">
-
       <div class="wheel" id="minWheel"></div>
       <div class="wheel" id="secWheel"></div>
-
     </div>
 
-    <button onclick="logRun()">Save Run</button>
+    <label>Distance (km)</label>
+    <input id="dist" type="number" step="0.1">
+
+    <label>Type</label>
+    <select id="type">
+      <option>Easy</option>
+      <option>Tempo</option>
+      <option>Intervals</option>
+      <option>Long Run</option>
+    </select>
+
+    <button onclick="saveWorkout()">Save Workout</button>
   </div>
 
 </div>
 
 <!-- PROGRESS -->
 <div id="progress" class="hidden">
+
   <div class="card">
-    <h3>History</h3>
-    <div id="history"></div>
+    <h3>Fitness Trend</h3>
+    <canvas id="chart"></canvas>
   </div>
+
+  <div class="card">
+    <h3>Workouts</h3>
+    <div id="list"></div>
+  </div>
+
 </div>
 
 <!-- SETTINGS -->
 <div id="settings" class="hidden">
   <div class="card">
-    <h3>System</h3>
-    <button onclick="reset()">Reset</button>
+    <button onclick="reset()">Reset All Data</button>
   </div>
 </div>
 
@@ -179,104 +216,140 @@ button{
 
 <script>
 
-/* ---------------- TRAINING ENGINE ---------------- */
+/* ---------------- STATE ---------------- */
 
-const phases=["BASE","THRESHOLD","VO2","RACE"];
-
-function state(){
+function get(){
   return {
     week:+(localStorage.getItem("week")||1),
-    phase:+(localStorage.getItem("phase")||0),
-    times:JSON.parse(localStorage.getItem("times")||"[]")
+    data:JSON.parse(localStorage.getItem("data")||"[]")
   };
 }
 
 function save(s){
   localStorage.setItem("week",s.week);
-  localStorage.setItem("phase",s.phase);
-  localStorage.setItem("times",JSON.stringify(s.times));
+  localStorage.setItem("data",JSON.stringify(s.data));
 }
 
-function pace(times){
-  if(times.length===0) return 5.2;
-  let t=times[times.length-1].split(":");
-  return (+t[0]*60+ +t[1])/300;
-}
+/* ---------------- WHEELS ---------------- */
 
-function plan(s){
-  let p=pace(s.times);
+let minSel=25;
+let secSel=0;
 
-  if(phases[s.phase]==="BASE"){
-    return ["Easy 40","3×8 tempo","Recovery","Easy 45","Strides","Long run"];
-  }
-  if(phases[s.phase]==="THRESHOLD"){
-    return ["Easy","5×1K","Recovery","20 tempo","Easy","Long run"];
-  }
-  if(phases[s.phase]==="VO2"){
-    return ["Easy","6×800","Recovery","4×1K","Easy","Long run"];
-  }
-  return ["Easy","5×1K race","Recovery","Tempo","Easy","Long run"];
-}
-
-/* ---------------- WHEEL PICKER ---------------- */
-
-let selectedMin=25;
-let selectedSec=0;
-
-function buildWheels(){
+function build(){
   let m=document.getElementById("minWheel");
   let s=document.getElementById("secWheel");
 
   for(let i=10;i<=60;i++){
-    m.innerHTML+=`<div onclick="selectedMin=${i}">${i}</div>`;
+    m.innerHTML+=`<div onclick="minSel=${i}">${i}</div>`;
   }
 
   for(let i=0;i<60;i++){
-    s.innerHTML+=`<div onclick="selectedSec=${i}">${i.toString().padStart(2,'0')}</div>`;
+    s.innerHTML+=`<div onclick="secSel=${i}">${i.toString().padStart(2,'0')}</div>`;
   }
 }
 
-/* ---------------- LOGGING ---------------- */
+/* ---------------- LOG ---------------- */
 
-function logRun(){
-  let s=state();
+function saveWorkout(){
+  let s=get();
 
-  let time=`${selectedMin}:${selectedSec.toString().padStart(2,'0')}`;
+  let time=`${minSel}:${secSel.toString().padStart(2,'0')}`;
 
-  s.times.push(time);
-
-  if(s.week%4===0) s.phase=Math.min(s.phase+1,3);
-  s.week++;
+  s.data.push({
+    time,
+    dist:+dist.value,
+    type:type.value,
+    week:s.week,
+    date:new Date().toISOString()
+  });
 
   save(s);
   render();
 }
 
-/* ---------------- UI ---------------- */
+/* ---------------- DELETE ---------------- */
+
+function del(i){
+  let s=get();
+  s.data.splice(i,1);
+  save(s);
+  render();
+}
+
+/* ---------------- WEEK ---------------- */
+
+function setWeek(){
+  let s=get();
+  s.week=+weekInput.value;
+  save(s);
+  render();
+}
+
+/* ---------------- PLAN ---------------- */
+
+function plan(week){
+  if(week<4) return ["Base: Easy + strides","Tempo","Recovery","Long"];
+  if(week<8) return ["Threshold","Intervals","Recovery","Long"];
+  return ["VO2","Race pace","Recovery","Long"];
+}
+
+/* ---------------- CHART ---------------- */
+
+function draw(){
+  let s=get();
+  let c=document.getElementById("chart");
+  let ctx=c.getContext("2d");
+
+  ctx.clearRect(0,0,c.width,c.height);
+
+  let runs=s.data.filter(x=>x.type==="Easy"||x.type==="Tempo");
+
+  runs.forEach((r,i)=>{
+    let p=r.time.split(":");
+    let sec=+p[0]*60+ +p[1];
+
+    let x=i*30;
+    let y=c.height-(sec/5);
+
+    ctx.fillStyle="#ff6a00";
+    ctx.fillRect(x,y,6,6);
+  });
+}
+
+/* ---------------- RENDER ---------------- */
 
 function render(){
-  let s=state();
+  let s=get();
 
-  document.getElementById("phase").innerText=
-    phases[s.phase]+" • Week "+s.week;
+  weekInput.value=s.week;
 
-  document.getElementById("week").innerHTML=
-    plan(s).map(x=>"• "+x).join("<br>");
+  document.getElementById("plan").innerHTML=
+    plan(s.week).map(x=>"• "+x).join("<br>");
 
-  document.getElementById("history").innerHTML=
-    s.times.map(t=>"🏃 "+t).join("<br>");
+  document.getElementById("list").innerHTML=
+    s.data.map((d,i)=>
+      `<div class="entry">
+        ${d.type} ${d.time} ${d.dist}km
+        <span class="delete" onclick="del(${i})">✕</span>
+      </div>`
+    ).join("");
+
+  draw();
 }
+
+/* ---------------- NAV ---------------- */
 
 function nav(id,el){
   ["dashboard","progress","settings"].forEach(x=>{
     document.getElementById(x).classList.add("hidden");
   });
-
   document.getElementById(id).classList.remove("hidden");
 
   document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
   el.classList.add("active");
 }
+
+/* RESET */
 
 function reset(){
   localStorage.clear();
@@ -284,7 +357,8 @@ function reset(){
 }
 
 /* INIT */
-buildWheels();
+
+build();
 render();
 
 if("serviceWorker" in navigator){
