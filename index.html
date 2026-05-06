@@ -3,14 +3,12 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>5K Trainer</title>
-
-<link rel="manifest" href="manifest.json">
+<title>5K Adaptive Coach</title>
 
 <style>
 body {
   margin:0;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family:-apple-system, BlinkMacSystemFont, sans-serif;
   background:#f2f2f7;
 }
 
@@ -21,13 +19,12 @@ body {
   background:white;
   padding:14px;
   text-align:center;
-  font-weight:bold;
+  font-weight:700;
   border-bottom:1px solid #ddd;
-  z-index:10;
 }
 
 .content {
-  padding:70px 15px 90px;
+  padding:70px 15px 100px;
 }
 
 .card {
@@ -35,7 +32,29 @@ body {
   padding:15px;
   border-radius:12px;
   margin-bottom:15px;
-  box-shadow:0 1px 3px rgba(0,0,0,0.08);
+}
+
+.small {
+  font-size:13px;
+  color:#666;
+}
+
+button {
+  width:100%;
+  padding:10px;
+  margin-top:10px;
+  border:none;
+  border-radius:10px;
+  background:#007aff;
+  color:white;
+  font-size:16px;
+}
+
+input, textarea {
+  width:100%;
+  padding:10px;
+  border-radius:8px;
+  border:1px solid #ccc;
 }
 
 .tabbar {
@@ -52,136 +71,232 @@ body {
   text-align:center;
   padding:10px;
   font-size:12px;
-  cursor:pointer;
 }
 
-.active {
-  color:#007aff;
-  font-weight:bold;
-}
+.active { color:#007aff; font-weight:700; }
 
 .hidden { display:none; }
-
-input, textarea {
-  width:100%;
-  padding:10px;
-  border-radius:8px;
-  border:1px solid #ccc;
-  margin-top:6px;
-  box-sizing:border-box;
-}
-
-button {
-  width:100%;
-  padding:10px;
-  margin-top:10px;
-  border:none;
-  border-radius:8px;
-  background:#007aff;
-  color:white;
-  font-size:16px;
-}
-
-label {
-  display:block;
-  margin-bottom:8px;
-}
 </style>
 </head>
 
 <body>
 
-<div class="header">🏃 5K Trainer</div>
+<div class="header">🏃 Adaptive 5K Coach</div>
 
 <div class="content">
 
-<!-- PLAN -->
-<div id="plan">
+<!-- DASHBOARD -->
+<div id="dashboard">
   <div class="card">
-    <h3>Weekly Plan</h3>
-    <div id="days"></div>
+    <h3>Current Phase</h3>
+    <div id="phaseText"></div>
+    <div class="small" id="goalText"></div>
+  </div>
+
+  <div class="card">
+    <h3>This Week's Plan</h3>
+    <div id="weekPlan"></div>
+  </div>
+
+  <div class="card">
+    <h3>Log 5K</h3>
+    <input id="timeInput" placeholder="e.g. 25:30">
+    <button onclick="logRun()">Save Run</button>
   </div>
 </div>
 
 <!-- PROGRESS -->
 <div id="progress" class="hidden">
   <div class="card">
-    <h3>Log 5K Time</h3>
-    <input id="timeInput" placeholder="e.g. 25:30">
-    <button onclick="addTime()">Add Time</button>
-    <canvas id="chart" width="300" height="150"></canvas>
-  </div>
-</div>
-
-<!-- NOTES -->
-<div id="notesTab" class="hidden">
-  <div class="card">
-    <h3>Notes</h3>
-    <textarea id="notes" rows="6" placeholder="How did training feel today?"></textarea>
+    <h3>Progress History</h3>
+    <div id="history"></div>
   </div>
 </div>
 
 <!-- SETTINGS -->
 <div id="settings" class="hidden">
   <div class="card">
-    <h3>Paces</h3>
-
-    <label>Easy pace</label>
-    <input id="easy" placeholder="5:45/km">
-
-    <label>Tempo pace</label>
-    <input id="tempo" placeholder="5:00/km">
-
-    <label>Interval pace</label>
-    <input id="interval" placeholder="4:30/km">
-
-    <button onclick="savePaces()">Save Paces</button>
+    <h3>Coach Settings</h3>
+    <button onclick="resetPlan()">Reset Training Cycle</button>
   </div>
 </div>
 
 </div>
 
-<!-- TAB BAR -->
+<!-- NAV -->
 <div class="tabbar">
-  <div class="tab active" onclick="show('plan',this)">Plan</div>
+  <div class="tab active" onclick="show('dashboard',this)">Plan</div>
   <div class="tab" onclick="show('progress',this)">Progress</div>
-  <div class="tab" onclick="show('notesTab',this)">Notes</div>
   <div class="tab" onclick="show('settings',this)">Settings</div>
 </div>
 
 <script>
-// -------------------- TRAINING PLAN --------------------
-const workouts = [
-  "Strength + Easy Run",
-  "Intervals / Tempo",
-  "Recovery / Bike",
-  "Medium Run",
-  "Easy Run",
-  "Long Run",
-  "Rest"
-];
 
-function loadPlan() {
-  const container = document.getElementById("days");
-  container.innerHTML = "";
+/* -----------------------------
+   CORE TRAINING ENGINE
+----------------------------- */
 
-  workouts.forEach((w, i) => {
-    const checked = localStorage.getItem("w"+i) === "true";
+const phases = ["BASE","THRESHOLD","VO2","RACE"];
 
-    container.innerHTML += `
-      <label>
-        <input type="checkbox"
-        ${checked ? "checked" : ""}
-        onchange="localStorage.setItem('w${i}', this.checked)">
-        ${w}
-      </label>
-    `;
-  });
+function getState() {
+  return {
+    week: parseInt(localStorage.getItem("week") || "1"),
+    phase: parseInt(localStorage.getItem("phase") || "0"),
+    times: JSON.parse(localStorage.getItem("times") || "[]")
+  };
 }
 
-// -------------------- NAVIGATION --------------------
-function show(id, el) {
-  ["plan","progress","notesTab","settings"].forEach(x=>{
+function saveState(state) {
+  localStorage.setItem("week", state.week);
+  localStorage.setItem("phase", state.phase);
+  localStorage.setItem("times", JSON.stringify(state.times));
+}
+
+/* -----------------------------
+   PACING MODEL (simple adaptive)
+----------------------------- */
+
+function getPaces() {
+  const times = JSON.parse(localStorage.getItem("times") || "[]");
+
+  let base = 5.2; // min/km default
+
+  if (times.length > 0) {
+    let last = times[times.length - 1];
+    let p = last.split(":");
+    let sec = (+p[0]*60 + +p[1]) / 300; // normalize
+    base = sec;
+  }
+
+  return {
+    easy: (base + 0.8).toFixed(2),
+    tempo: (base + 0.2).toFixed(2),
+    interval: (base - 0.4).toFixed(2)
+  };
+}
+
+/* -----------------------------
+   TRAINING GENERATOR
+----------------------------- */
+
+function generateWeek(state) {
+
+  let phase = phases[state.phase];
+  let p = getPaces();
+
+  let plan = [];
+
+  if (phase === "BASE") {
+    plan = [
+      "Easy 40 min",
+      "3×8 min tempo @" + p.tempo,
+      "Rest / Bike",
+      "Easy 45 min",
+      "Strides 6×20s",
+      "Long run 70 min",
+      "Rest"
+    ];
+  }
+
+  if (phase === "THRESHOLD") {
+    plan = [
+      "Easy + strength",
+      "5×1K @" + p.interval,
+      "Recovery",
+      "20 min tempo",
+      "Easy run",
+      "Long run 80 min",
+      "Rest"
+    ];
+  }
+
+  if (phase === "VO2") {
+    plan = [
+      "Easy",
+      "6×800m fast",
+      "Recovery",
+      "4×1K @" + p.interval,
+      "Easy",
+      "Long run 85 min",
+      "Rest"
+    ];
+  }
+
+  if (phase === "RACE") {
+    plan = [
+      "Easy",
+      "5×1K @ goal pace",
+      "Recovery",
+      "15 min tempo",
+      "Easy",
+      "Long run 70 min",
+      "Rest"
+    ];
+  }
+
+  return plan;
+}
+
+/* -----------------------------
+   PROGRESSION LOGIC
+----------------------------- */
+
+function advance(state) {
+  state.week++;
+
+  if (state.week % 4 === 0) {
+    state.phase = Math.min(state.phase + 1, phases.length - 1);
+  }
+
+  saveState(state);
+}
+
+/* -----------------------------
+   UI
+----------------------------- */
+
+function render() {
+  let state = getState();
+
+  document.getElementById("phaseText").innerText =
+    phases[state.phase] + " (Week " + state.week + ")";
+
+  document.getElementById("goalText").innerText =
+    "Target: 20:00 5K (4:00/km)";
+
+  let week = generateWeek(state);
+
+  document.getElementById("weekPlan").innerHTML =
+    week.map(d => "• " + d).join("<br>");
+
+  let history = JSON.parse(localStorage.getItem("times") || "[]");
+
+  document.getElementById("history").innerHTML =
+    history.map(t => "🏃 " + t).join("<br>");
+}
+
+/* -----------------------------
+   ACTIONS
+----------------------------- */
+
+function logRun() {
+  let val = document.getElementById("timeInput").value;
+  let state = getState();
+
+  state.times.push(val);
+
+  advance(state);
+  saveState(state);
+  render();
+}
+
+function resetPlan() {
+  localStorage.clear();
+  render();
+}
+
+function show(id,el){
+  ["dashboard","progress","settings"].forEach(x=>{
     document.getElementById(x).classList.add("hidden");
   });
 
@@ -191,68 +306,9 @@ function show(id, el) {
   el.classList.add("active");
 }
 
-// -------------------- PACE STORAGE --------------------
-function savePaces() {
-  ["easy","tempo","interval"].forEach(id=>{
-    localStorage.setItem(id, document.getElementById(id).value);
-  });
-}
+/* INIT */
+render();
 
-function loadPaces() {
-  ["easy","tempo","interval"].forEach(id=>{
-    document.getElementById(id).value = localStorage.getItem(id) || "";
-  });
-}
-
-// -------------------- PROGRESS TRACKING --------------------
-function addTime() {
-  const val = document.getElementById("timeInput").value;
-
-  let data = JSON.parse(localStorage.getItem("times") || "[]");
-  data.push(val);
-
-  localStorage.setItem("times", JSON.stringify(data));
-
-  drawChart();
-}
-
-function drawChart() {
-  const canvas = document.getElementById("chart");
-  const ctx = canvas.getContext("2d");
-
-  const data = JSON.parse(localStorage.getItem("times") || "[]");
-
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-
-  data.forEach((t, i) => {
-    const parts = t.split(":");
-    const seconds = (+parts[0]*60) + (+parts[1]);
-
-    const x = 20 + i*30;
-    const y = canvas.height - (seconds * 0.5);
-
-    ctx.fillStyle = "#007aff";
-    ctx.fillRect(x, y, 8, 8);
-  });
-}
-
-// -------------------- NOTES --------------------
-document.getElementById("notes").value =
-  localStorage.getItem("notes") || "";
-
-document.getElementById("notes").oninput = (e) => {
-  localStorage.setItem("notes", e.target.value);
-};
-
-// -------------------- INIT --------------------
-loadPlan();
-loadPaces();
-drawChart();
-
-// OPTIONAL: register service worker (for PWA)
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("service-worker.js");
-}
 </script>
 
 </body>
